@@ -7,6 +7,7 @@ Run from repo root:
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -44,6 +45,28 @@ st.set_page_config(
 )
 
 
+def _apply_streamlit_secrets() -> None:
+    """Map Community Cloud secrets → env so pydantic Settings picks them up."""
+    try:
+        secrets = st.secrets
+    except Exception:  # noqa: BLE001 — local runs may have no secrets.toml
+        return
+    mapping = {
+        "GROQ_API_KEY": "GROQ_API_KEY",
+        "LLM_MODEL": "LLM_MODEL",
+        "USE_LLM_CLASSIFIER": "USE_LLM_CLASSIFIER",
+        "CHROMA_PERSIST_DIR": "CHROMA_PERSIST_DIR",
+        "ALLOW_PLAYWRIGHT": "ALLOW_PLAYWRIGHT",
+    }
+    for secret_key, env_key in mapping.items():
+        if secret_key in secrets and not os.environ.get(env_key):
+            os.environ[env_key] = str(secrets[secret_key])
+    get_settings.cache_clear()
+
+
+_apply_streamlit_secrets()
+
+
 def _init_state() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -61,6 +84,26 @@ def _get_retriever() -> Retriever:
 def _index_is_healthy() -> bool:
     """EC-X-04 — cold-start / empty Chroma fail closed (cached briefly)."""
     return check_index_health(run_sample_query=True).ok
+
+
+def _bootstrap_index() -> tuple[bool, str]:
+    """One-time ingest for Community Cloud cold start (may take several minutes)."""
+    from src.ingestion.pipeline import run_ingest
+    from src.ops.metrics import record_scrape_from_ingest_report
+
+    settings = get_settings()
+    # Playwright often unavailable on Community Cloud free hosts.
+    if "ALLOW_PLAYWRIGHT" not in os.environ:
+        os.environ["ALLOW_PLAYWRIGHT"] = "false"
+        get_settings.cache_clear()
+        settings = get_settings()
+
+    report = run_ingest(settings=settings, save_raw=False)
+    record_scrape_from_ingest_report(report, settings=settings)
+    _index_is_healthy.clear()
+    _get_retriever.clear()
+    health = check_index_health(settings=settings, run_sample_query=True)
+    return health.ok, report.summary()
 
 
 def _unavailable_view() -> AssistantView:
@@ -189,6 +232,23 @@ with st.sidebar:
         st.session_state.pending_prompt = side_pick
         st.rerun()
     st.divider()
+    if not _index_is_healthy():
+        st.caption("Knowledge base empty — run a one-time source refresh.")
+        if st.button(
+            "Build / refresh index",
+            icon=":material/cloud_download:",
+            width="stretch",
+            type="primary",
+        ):
+            with st.spinner("Scraping approved sources and building index… (first run is slow)"):
+                ok, summary = _bootstrap_index()
+            if ok:
+                st.success("Index ready.")
+            else:
+                st.error("Index still unhealthy after refresh.")
+            st.code(summary[:2000])
+            st.rerun()
+        st.divider()
     if st.button("Clear chat", icon=":material/delete:", width="stretch"):
         st.session_state.messages = []
         st.session_state.pending_prompt = None

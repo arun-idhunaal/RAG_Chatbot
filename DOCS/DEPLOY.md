@@ -4,22 +4,29 @@
 
 ## Option A — Streamlit Community Cloud (fastest shareable link)
 
-1. Push this repo to `main` on GitHub (secrets stay in Streamlit, not the repo).
-2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**.
-3. Select `arun-idhunaal/RAG_Chatbot`, branch `main`, main file `app/streamlit_app.py`.
-4. Under **Secrets**, add:
+**One-click deploy form (prefilled):**  
+https://share.streamlit.io/deploy?repository=arun-idhunaal/RAG_Chatbot&branch=master&mainModule=app/streamlit_app.py
+
+1. Open the link above (sign in with GitHub if prompted).
+2. Confirm:
+   - Repository: `arun-idhunaal/RAG_Chatbot`
+   - Branch: `master`
+   - Main file: `app/streamlit_app.py`
+3. Open **Advanced settings → Secrets** and paste:
 
 ```toml
 GROQ_API_KEY = "gsk_..."
 LLM_MODEL = "llama-3.3-70b-versatile"
 USE_LLM_CLASSIFIER = "true"
+ALLOW_PLAYWRIGHT = "false"
 ```
 
-5. Deploy. First answers need a populated Chroma index:
-   - Either run `python -m scripts.daily_refresh` locally and commit is **not** recommended for large chroma; prefer Option B, **or**
-   - Use a one-time Cloud bootstrap: open the app after wiring a host that runs `scripts/docker_entrypoint.sh`.
+4. Click **Deploy**.
+5. After the app boots, if you see “knowledge base unavailable”, use the sidebar **Build / refresh index** button once (first scrape + `bge-m3` embed can take several minutes).
 
-Community Cloud disk is ephemeral — for daily 10:00 AM IST freshness, prefer Railway/Render with a volume, or keep the GitHub Action artifact + re-hydrate strategy.
+App URL shape: `https://<app-name>.streamlit.app`
+
+> Note: Community Cloud disk is ephemeral. Reboot may wipe Chroma — re-run **Build / refresh index**. For durable daily 10:00 AM IST freshness, use Option B.
 
 ## Option B — Railway / Render (Docker + volume) — recommended for freshness
 

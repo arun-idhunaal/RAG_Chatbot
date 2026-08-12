@@ -1,2 +1,4 @@
-# Empty placeholder — Streamlit Community Cloud apt packages (none required).
-# Python deps are installed from requirements.txt.
+# Streamlit Community Cloud — system packages (apt)
+# Keep minimal; Python deps come from requirements.txt
+build-essential
+curl
