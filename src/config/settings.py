@@ -38,7 +38,7 @@ class Settings(BaseSettings):
             "Chrome/120.0.0.0 Safari/537.36"
         )
     )
-    allow_playwright: bool = Field(default=True)
+    allow_playwright: bool = Field(default=False)
     playwright_wait_ms: int = Field(default=4000)
 
     # Chunking (Architecture §4.4)

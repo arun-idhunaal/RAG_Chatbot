@@ -159,7 +159,13 @@ def _looks_blocked(html: str) -> bool:
 
 
 def _fetch_with_playwright(url: str, settings: Settings) -> str:
-    from playwright.sync_api import sync_playwright
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError(
+            "playwright not installed; pip install -e '.[playwright]' "
+            "and run playwright install chromium"
+        ) from exc
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)

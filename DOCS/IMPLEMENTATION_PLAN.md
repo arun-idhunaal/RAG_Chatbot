@@ -1,6 +1,6 @@
 # Implementation Plan — INDmoney MF FAQ Chatbot (RAG)
 
-**Status:** v1  
+**Status:** v1 — Phases 1–6 implemented (deploy shareable URL: Streamlit Cloud / see `DOCS/DEPLOY.md`)  
 **Based on:** `Architecture.md` (confirmed stack)  
 **Also aligns with:** `PRD_RAGMFCHATBOT.md`, `PRODUCT_BRIEF_RAGMFCHATBOT.md`  
 **Source inputs:** `SOURCE_LIST_RAGMFCHATBOT.md`, `SAMPLE_Q&A_RAGMFCHATBOT.md`  
@@ -83,11 +83,11 @@ RAG_Chatbot/
 
 ### Deliverables
 
-- [ ] Runnable ingest script
-- [ ] Populated Chroma under `data/chroma/`
-- [ ] Config module for schemes + sources
-- [ ] Brief ingest success report (counts per corpus / scheme)
-- [ ] Notes/tests covering **EC-ING-01, EC-ING-05, EC-ING-06**
+- [x] Runnable ingest script
+- [x] Populated Chroma under `data/chroma/` (local / post-deploy bootstrap)
+- [x] Config module for schemes + sources
+- [x] Brief ingest success report (counts per corpus / scheme)
+- [x] Notes/tests covering **EC-ING-01, EC-ING-05, EC-ING-06**
 
 ### Exit criteria
 
@@ -131,10 +131,10 @@ Nothing (first phase).
 
 ### Deliverables
 
-- [ ] `pii_guard`, `intent_classifier`, `scheme_resolver`, `retriever` modules
-- [ ] Orchestrator stub that returns `{intent, scheme_id?, chunks[], short_circuit?}`
-- [ ] Unit/smoke tests for each of the 8 intents’ **routing** (retrieval filters / early exit)
-- [ ] Edge-case fixtures from `EDGECASES.md`: **EC-PII-01…02**, **EC-INT-01…08**, **EC-INT-12**, **EC-SCH-01…06**, **EC-RET-01…04**
+- [x] `pii_guard`, `intent_classifier`, `scheme_resolver`, `retriever` modules
+- [x] Orchestrator stub that returns `{intent, scheme_id?, chunks[], short_circuit?}`
+- [x] Unit/smoke tests for each of the 8 intents’ **routing** (retrieval filters / early exit)
+- [x] Edge-case fixtures from `EDGECASES.md`: **EC-PII-01…02**, **EC-INT-01…08**, **EC-INT-12**, **EC-SCH-01…06**, **EC-RET-01…04**
 
 ### Exit criteria
 
@@ -176,10 +176,10 @@ Phase 1 (Chroma index + scheme config).
 
 ### Deliverables
 
-- [ ] `answer_generator` + prompts
-- [ ] Response schema: `answer_text`, `citations[]`, `last_updated_from_sources`, `intent`
-- [ ] Manual notebook/CLI demos for ~5 scheme + ~5 general questions from Sample Q&A
-- [ ] Tests for **EC-ANS-01**, **EC-ANS-03**, **EC-ANS-04**, **EC-CIT-01…04**, **EC-RET-04**
+- [x] `answer_generator` + prompts
+- [x] Response schema: `answer_text`, `citations[]`, `last_updated_from_sources`, `intent`
+- [x] Manual notebook/CLI demos for ~5 scheme + ~5 general questions from Sample Q&A (`scripts/pipeline_route.py`)
+- [x] Tests for **EC-ANS-01**, **EC-ANS-03**, **EC-ANS-04**, **EC-CIT-01…04**, **EC-RET-04**
 
 ### Exit criteria
 

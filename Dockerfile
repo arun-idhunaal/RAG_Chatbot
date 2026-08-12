@@ -29,7 +29,7 @@ COPY .streamlit ./.streamlit
 
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt \
-    && pip install -e . \
+    && pip install -e ".[playwright]" \
     && playwright install --with-deps chromium
 
 # Persist Chroma + audit across restarts (mount a volume at /app/data).
