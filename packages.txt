@@ -1,3 +1,0 @@
-# Streamlit Community Cloud apt packages
-build-essential
-curl
