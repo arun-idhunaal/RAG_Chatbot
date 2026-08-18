@@ -26,6 +26,7 @@ export type ChatResponse = {
   comparison_rows: ComparisonRow[];
   insufficient_context: boolean;
   corpus_available: boolean;
+  scheme_id: string | null;
 };
 
 export type SchemeInfo = {

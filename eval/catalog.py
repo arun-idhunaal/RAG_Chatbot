@@ -35,13 +35,14 @@ MINIMUM_SUITE: tuple[EdgeCaseSpec, ...] = (
     EdgeCaseSpec("EC-INT-07", "intent", Severity.S1, "General definition → general_factual", ("EC-INT-07", "test_ec_int")),
     EdgeCaseSpec("EC-INT-08", "intent", Severity.S1, "Informal alias scheme fact", ("EC-INT-08", "test_ec_int")),
     EdgeCaseSpec("EC-INT-12", "intent", Severity.S0, "Compare performance ≠ FR-4", ("EC-INT-12", "test_ec_int")),
-    # Scheme match — EC-SCH-01…06
+    # Scheme match — EC-SCH-01…06, EC-SCH-09
     EdgeCaseSpec("EC-SCH-01", "scheme", Severity.S1, "Informal alias maps correctly", ("EC-SCH-01", "test_ec_sch")),
     EdgeCaseSpec("EC-SCH-02", "scheme", Severity.S1, "Ambiguous → no guess", ("EC-SCH-02", "test_ec_sch")),
     EdgeCaseSpec("EC-SCH-03", "scheme", Severity.S1, "Low-confidence → FR-9", ("EC-SCH-03", "test_ec_sch")),
     EdgeCaseSpec("EC-SCH-04", "scheme", Severity.S1, "Wrong plan variant not covered", ("EC-SCH-04", "test_ec_sch")),
     EdgeCaseSpec("EC-SCH-05", "scheme", Severity.S1, "Typo below threshold → FR-9", ("EC-SCH-05", "test_ec_sch")),
     EdgeCaseSpec("EC-SCH-06", "scheme", Severity.S1, "Generic AMC only → no default", ("EC-SCH-06", "test_ec_sch")),
+    EdgeCaseSpec("EC-SCH-09", "scheme", Severity.S1, "Field-only follow-up uses prior scheme", ("EC-SCH-09", "test_ec_sch")),
     # Retrieval isolation — EC-RET-01…04
     EdgeCaseSpec("EC-RET-01", "retrieval", Severity.S1, "Scheme filter isolation", ("EC-RET-01", "test_ec_ret")),
     EdgeCaseSpec("EC-RET-02", "retrieval", Severity.S1, "General corpus only", ("EC-RET-02", "test_ec_ret")),
@@ -55,13 +56,14 @@ MINIMUM_SUITE: tuple[EdgeCaseSpec, ...] = (
     EdgeCaseSpec("EC-CIT-05", "citations", Severity.S1, "Per-scheme comparison citations", ("EC-CIT-05", "test_ec_cmp")),
     EdgeCaseSpec("EC-ANS-03", "citations", Severity.S0, "No uncited extra facts", ("EC-ANS-03", "test_ec_ans_cit")),
     EdgeCaseSpec("EC-ANS-04", "citations", Severity.S1, "Insufficient context fail-closed", ("EC-ANS-04", "test_ec_ans_cit")),
-    # Comparisons — EC-CMP-01…06
+    # Comparisons — EC-CMP-01…06, EC-CMP-09
     EdgeCaseSpec("EC-CMP-01", "comparison", Severity.S1, "Allowed field + per-scheme cites", ("EC-CMP-01", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-02", "comparison", Severity.S1, "Bare ranking shows all values", ("EC-CMP-02", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-03", "comparison", Severity.S0, "Returns comparison not FR-4", ("EC-CMP-03", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-04", "comparison", Severity.S0, "Which is better → advisory", ("EC-CMP-04", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-05", "comparison", Severity.S1, "Missing extract → unavailable", ("EC-CMP-05", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-06", "comparison", Severity.S0, "No better-choice language", ("EC-CMP-06", "test_ec_cmp")),
+    EdgeCaseSpec("EC-CMP-09", "comparison", Severity.S1, "Ranking query still extracts Direct TER", ("EC-CMP-09", "test_ec_cmp")),
     # Advisory / mixed — EC-ADV-01…03, EC-MIX-01…03
     EdgeCaseSpec("EC-ADV-01", "advisory_mixed", Severity.S0, "Best/should/recommend refused", ("EC-ADV-01", "test_ec_adv_mix")),
     EdgeCaseSpec("EC-ADV-02", "advisory_mixed", Severity.S2, "No echo of advisory framing", ("EC-ADV-02", "test_ec_adv_mix")),

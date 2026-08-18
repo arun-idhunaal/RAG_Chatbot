@@ -64,3 +64,60 @@ def test_ec_sch_05_typo_below_threshold(sch_settings: Settings):
 def test_ec_sch_06_generic_icici_only(sch_settings: Settings):
     result = resolve_scheme("ICICI Prudential", settings=sch_settings)
     assert result.matched is False
+
+
+def test_ec_sch_09_field_followup_uses_prior_scheme(no_llm_settings, mock_retriever):
+    """Field-only follow-up with prior_scheme_id answers against that scheme."""
+    from src.pipeline.models import Intent
+    from src.pipeline.orchestrator import process_query
+
+    def fake_llm(query, ctx):
+        del query
+        return {
+            "answer_text": "The minimum SIP amount is INR 100.",
+            "citation_urls": [ctx[0].source_url],
+            "insufficient_context": False,
+        }
+
+    result = process_query(
+        "minimum sip amount?",
+        settings=no_llm_settings,
+        retriever=mock_retriever,
+        llm_generate=fake_llm,
+        prior_scheme_id="icici_nasdaq100_dg",
+    )
+    assert result.intent == Intent.SCHEME_SPECIFIC_FACTUAL
+    assert result.scheme_id == "icici_nasdaq100_dg"
+    mock_retriever.retrieve_scheme.assert_called()
+    assert mock_retriever.retrieve_scheme.call_args.args[1] == "icici_nasdaq100_dg"
+    mock_retriever.retrieve_general.assert_not_called()
+    assert "100" in (result.answer_text or "")
+
+
+def test_ec_sch_09_without_prior_does_not_guess_scheme(no_llm_settings, mock_retriever):
+    """Same field-only ask without prior_scheme_id stays general — no default scheme."""
+    from src.pipeline.models import Intent
+    from src.pipeline.orchestrator import process_query
+
+    result = process_query(
+        "minimum sip amount?",
+        settings=no_llm_settings,
+        retriever=mock_retriever,
+    )
+    assert result.intent == Intent.GENERAL_FACTUAL
+    mock_retriever.retrieve_scheme.assert_not_called()
+    mock_retriever.retrieve_general.assert_called_once()
+
+
+def test_ec_sch_09_definition_not_carried(no_llm_settings, mock_retriever):
+    from src.pipeline.models import Intent
+    from src.pipeline.orchestrator import process_query
+
+    result = process_query(
+        "What is an exit load?",
+        settings=no_llm_settings,
+        retriever=mock_retriever,
+        prior_scheme_id="icici_nasdaq100_dg",
+    )
+    assert result.intent == Intent.GENERAL_FACTUAL
+    mock_retriever.retrieve_scheme.assert_not_called()

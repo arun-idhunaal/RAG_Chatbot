@@ -64,6 +64,7 @@ Every incoming query must be classified into exactly one of these before retriev
 - Fuzzy match against official scheme names, not against the raw URL slugs.
 - If match confidence is below a reasonable threshold, or the query ties between two or more schemes ambiguously, do **not** guess — fall through to FR-9 (Unsupported Scheme Handling) and surface the list of 5 supported schemes rather than answering against a wrong scheme.
 - A wrong-scheme match is worse than a no-match — bias the threshold conservatively.
+- A field-only follow-up (e.g. “minimum sip amount?” after a scheme-specific answer) may reuse the last resolved supported scheme when the client sends `prior_scheme_id`. If that id is absent, do not pick a default scheme.
 
 ### FR-3: Retrieval Source Routing
 **Behavior:** Route retrieval to the correct corpus subset based on classified intent.
@@ -77,6 +78,7 @@ Every incoming query must be classified into exactly one of these before retriev
 **Rules:**
 - Only these fields may be compared: expense ratio, exit load, minimum SIP, lock-in, riskometer category, benchmark.
 - Answer must state each scheme's value individually with its own citation (e.g., "Scheme A: X% [source]. Scheme B: Y% [source].") — never a bare ranking without the underlying values shown.
+- Ranking-style questions (e.g. “which of these has the lowest expense ratio?”) still require those per-scheme values whenever the scheme sources contain the field. “Unavailable from sources” is only for a scheme whose field cannot be extracted — not a stand-in for a ranking.
 - Phrasing must stay factual: "Scheme A has a lower expense ratio than Scheme B" is fine. "Scheme A is the better choice" is not — that's advisory and must route to FR-7 language instead, even mid-answer.
 
 ### FR-5: Answer Composition
@@ -137,6 +139,7 @@ Every incoming query must be classified into exactly one of these before retriev
 - Mixed answers (FR-8) render as **two distinct visual blocks**: a facts card (answer + citations + date) then a separate refusal — never blended into one paragraph.
 - Cross-scheme comparisons (FR-4) may render as a per-scheme table: each row shows the scheme’s value and its own citation; missing values as “unavailable from sources”; no “best/winner” styling that implies advice.
 - Unsupported-scheme answers (FR-9) list all 5 supported canonical scheme names in a readable list.
+- The UI may remember the last resolved `scheme_id` in the browser session and send it as `prior_scheme_id` on the next `POST /v1/chat` so a field-only follow-up can be answered. Clear chat clears that id. The server still does not store chat history.
 
 ---
 

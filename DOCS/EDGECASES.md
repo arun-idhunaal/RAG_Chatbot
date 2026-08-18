@@ -68,6 +68,7 @@ This document catalogs **edge cases and failure modes** the bot must handle corr
 | EC-SCH-06 | Only “ICICI” / “Prudential” with no scheme cue | Do not pick a default scheme → clarify via FR-9 list or ask which of the 5 | S1 |
 | EC-SCH-07 | Supported scheme mentioned by INDmoney URL slug style | Match on **canonical name/aliases**, not URL slug alone | S2 |
 | EC-SCH-08 | Two supported schemes in one factual ask (“expense ratio of Midcap and Flexicap”) | Prefer structured dual answer with **per-scheme citations**, or ask to split — never one citation covering both | S1 |
+| EC-SCH-09 | Field-only follow-up (“minimum sip amount?”) after a resolved scheme turn | Client sends `prior_scheme_id`; answer that scheme’s field. Without prior, do **not** default a scheme (general / fail-closed) | S1 |
 
 ---
 
@@ -96,6 +97,7 @@ This document catalogs **edge cases and failure modes** the bot must handle corr
 | EC-CMP-06 | Template emits “better choice” language | Defect — strip/forbid; factual “lower expense ratio than” only when values support | S0 |
 | EC-CMP-07 | Different `scraped_at` across schemes | Prefer per-citation dates (or clearly scoped stamps); not one wrong global date | S2 |
 | EC-CMP-08 | Compare field not in allowed list (e.g. AUM, holdings) | Out-of-corpus / not supported comparison — no invented table | S1 |
+| EC-CMP-09 | Ranking question (“lowest expense ratio”) when scheme pages contain the field (label, then “as on” date, then Direct/Regular %) | Field-focused retrieve + parse; each scheme shows its Direct value + own citation — **not** all-unavailable | S1 |
 
 ---
 
@@ -213,10 +215,10 @@ Minimum automated / scripted coverage:
 | Suite | Edge case IDs (minimum) |
 |---|---|
 | Intent routing | EC-INT-01…08, EC-INT-12 |
-| Scheme match | EC-SCH-01…06 |
+| Scheme match | EC-SCH-01…06, EC-SCH-09 |
 | Retrieval isolation | EC-RET-01…04 |
 | Citations | EC-CIT-01…05, EC-ANS-03…04 |
-| Comparisons | EC-CMP-01…06 |
+| Comparisons | EC-CMP-01…06, EC-CMP-09 |
 | Advisory / mixed | EC-ADV-01…03, EC-MIX-01…03 |
 | FR-9 vs FR-10 | EC-UNS-01…04, EC-OOC-01…04 |
 | PII | EC-PII-01…04 |

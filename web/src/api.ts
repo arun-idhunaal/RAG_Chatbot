@@ -12,11 +12,17 @@ export async function fetchUiConfig(): Promise<UiConfig> {
   return res.json();
 }
 
-export async function sendChat(message: string): Promise<ChatResponse> {
+export async function sendChat(
+  message: string,
+  priorSchemeId?: string | null,
+): Promise<ChatResponse> {
   const res = await fetch("/v1/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      message,
+      prior_scheme_id: priorSchemeId || undefined,
+    }),
   });
   if (!res.ok) throw new Error("Chat request failed");
   return res.json();

@@ -16,6 +16,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastSchemeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     void Promise.all([fetchUiConfig(), fetchHealth()])
@@ -46,9 +47,20 @@ export default function App() {
       const id = newId();
       setTurns((prev) => [...prev, { id, userText: text, assistant: null, loading: true }]);
       try {
-        const assistant = await sendChat(text);
+        const assistant = await sendChat(text, lastSchemeIdRef.current);
         const userText =
           assistant.intent === "pii" ? config.pii_user_placeholder : text;
+        if (assistant.scheme_id) {
+          lastSchemeIdRef.current = assistant.scheme_id;
+        } else if (
+          assistant.intent === "cross_scheme_comparison" ||
+          assistant.intent === "unsupported_scheme" ||
+          assistant.intent === "pii" ||
+          assistant.intent === "unavailable" ||
+          (assistant.comparison_rows && assistant.comparison_rows.length > 0)
+        ) {
+          lastSchemeIdRef.current = null;
+        }
         setTurns((prev) =>
           prev.map((t) =>
             t.id === id
@@ -76,6 +88,7 @@ export default function App() {
                     comparison_rows: [],
                     insufficient_context: true,
                     corpus_available: false,
+                    scheme_id: null,
                   },
                 }
               : t,
@@ -113,7 +126,10 @@ export default function App() {
         disclaimer={disclaimer}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        onClear={() => setTurns([])}
+        onClear={() => {
+          lastSchemeIdRef.current = null;
+          setTurns([]);
+        }}
         onAskScheme={(name) => void ask(`What is the expense ratio of ${name}?`)}
       />
 

@@ -135,7 +135,7 @@ Nothing (first phase).
 - [x] `pii_guard`, `intent_classifier`, `scheme_resolver`, `retriever` modules
 - [x] Orchestrator stub that returns `{intent, scheme_id?, chunks[], short_circuit?}`
 - [x] Unit/smoke tests for each of the 8 intents’ **routing** (retrieval filters / early exit)
-- [x] Edge-case fixtures from `EDGECASES.md`: **EC-PII-01…02**, **EC-INT-01…08**, **EC-INT-12**, **EC-SCH-01…06**, **EC-RET-01…04**
+- [x] Edge-case fixtures from `EDGECASES.md`: **EC-PII-01…02**, **EC-INT-01…08**, **EC-INT-12**, **EC-SCH-01…06**, **EC-SCH-09**, **EC-RET-01…04**
 
 ### Exit criteria
 
@@ -208,9 +208,10 @@ Phase 2.
 
 1. **Cross-scheme comparison (FR-4) — extract → template**
    - Allowed fields only: expense ratio, exit load, min SIP, lock-in, riskometer, benchmark
-   - Per-scheme retrieve → structured extract  
+   - Per-scheme retrieve with a **field-focused query** (not ranking wording) → structured extract  
      `{scheme_id, scheme_name, field, value, source_url, scraped_at}`
    - Deterministic template listing each scheme’s value + own citation
+   - Expense-ratio extract skips “as on” dates and prefers Direct-plan % (EC-CMP-09)
    - No “better choice” / advice language; optional factual “lower than” only when values support it
    - Missing extract → “unavailable from sources” for that scheme (no guess)
 2. **Refusal & edge handlers**
@@ -229,13 +230,14 @@ Phase 2.
 - [x] `field_extractor`, `comparison_templater`, refusal templates, hardened `citation_validator`
 - [x] Full orchestrator covering all 8 taxonomy paths
 - [x] CLI walkthrough matching Sample Q&A sections 1–4 (advisory, mixed, etc.)
-- [x] Edge-case tests: **EC-CMP-01…06**, **EC-ADV-01…03**, **EC-MIX-01…04**, **EC-UNS-01…04**, **EC-OOC-01…04**, **EC-X-02…03**
+- [x] Edge-case tests: **EC-CMP-01…06**, **EC-CMP-09**, **EC-ADV-01…03**, **EC-MIX-01…04**, **EC-UNS-01…04**, **EC-OOC-01…04**, **EC-X-02…03**
 
 ### Exit criteria
 
 - All 8 intent types classified and routed with correct response shape
 - Comparisons: per-scheme values + citations; no performance/return framing (**EC-CMP-01…03**, **EC-CIT-05**)
 - Missing extract → unavailable row, no guess (**EC-CMP-05**); no “better choice” (**EC-CMP-06**)
+- Ranking questions still extract Direct-plan values when the TER is on the scheme page (**EC-CMP-09**)
 - Mixed = fact then separate refusal (**EC-MIX-01**, **EC-MIX-02**)
 - Unsupported lists exactly the 5 schemes (**EC-UNS-01**); out-of-corpus **distinct** from unsupported (**EC-OOC-01**, **EC-OOC-04**)
 - Advisory never hedges with uncited facts (**EC-ADV-01**); no echo of advisory framing (**EC-ADV-02**)
@@ -270,7 +272,7 @@ Phase 3.
 3. **UX constraints**
    - No auth / accounts
    - No server-side user history or PII storage
-   - Stateless backend call per message
+   - Stateless backend call per message (optional client-held `prior_scheme_id` for field-only follow-ups, EC-SCH-09)
 
 ### Deliverables
 
@@ -362,8 +364,8 @@ Phase 5 (MVP UI for interim demo). Pipeline itself only depends on Phase 4.
 1. **FastAPI app (`src/api/`)**
    - App lifespan: singleton `Retriever` (same role as Streamlit `@st.cache_resource`)
    - `GET /health` — reuse `check_index_health` (EC-X-04 fail closed when index empty)
-   - `POST /v1/chat` — `{ "message": "..." }` → `process_query` → JSON DTO (Architecture §6.1)
-   - DTO fields: `intent`, `answer_text`, `refusal_message`, `refusal_appended`, `citations[]`, `last_updated_from_sources`, `supported_schemes`, `comparison_field`, `comparison_rows`, `insufficient_context`, `corpus_available`
+   - `POST /v1/chat` — `{ "message": "...", "prior_scheme_id"?: "..." }` → `process_query` → JSON DTO (Architecture §6.1)
+   - DTO fields: `intent`, `answer_text`, `refusal_message`, `refusal_appended`, `citations[]`, `last_updated_from_sources`, `supported_schemes`, `comparison_field`, `comparison_rows`, `insufficient_context`, `corpus_available`, `scheme_id`
    - **Never** leak retrieved chunk text to the client
    - **PII:** if intent is `pii`, do not return `original_message`; client shows `[Message not shown — personal information detected]`
    - **Do not** expose unauthenticated ingest / “Build index” on the public chat UI. Ingest stays CLI / scheduled job (`scripts/ingest.py`, daily refresh)
@@ -374,7 +376,7 @@ Phase 5 (MVP UI for interim demo). Pipeline itself only depends on Phase 4.
 3. **React + Vite + TypeScript (`web/`)**
    - Welcome + facts-only framing; 3 example questions (same copy as `app/ui_copy.py`)
    - Sticky / always-visible disclaimer: `Facts-only. No investment advice.` (EC-UI-02)
-   - Chat transcript (browser session only; no server-side user history)
+   - Chat transcript (browser session only; no server-side user history); last `scheme_id` held in the client for field-only follow-ups (EC-SCH-09)
    - Mixed answers: two distinct visual blocks — facts (citations + date) then refusal (EC-UI-04)
    - Comparisons: table from `comparison_rows` (per-scheme value + citation); missing = “Unavailable from sources”
    - Citation links + inline `Last updated from sources: YYYY-MM-DD` (EC-UI-03)

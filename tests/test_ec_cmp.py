@@ -145,6 +145,56 @@ def test_extract_regex_expense_ratio():
     assert row.source_url == FLEX_URL
 
 
+def test_ec_cmp_09_extract_skips_as_on_date():
+    """INDmoney cards put 'as on 31 Jul' between the label and the TER (EC-CMP-09)."""
+    chunks = [
+        RetrievedChunk(
+            chunk_id="mid-er",
+            text=(
+                "Expense Ratio\n"
+                "as on 31 Jul 2026\n"
+                "Direct 0.89%\n"
+                "Regular 1.53%\n"
+                "Exit Load\n"
+                "1%"
+            ),
+            corpus="scheme",
+            scheme_id="icici_midcap_dg",
+            source_url=MID_URL,
+            source_title="Midcap",
+            page_ref=None,
+            scraped_at="2026-08-18T10:00:00+05:30",
+            fact_types=["expense_ratio"],
+            similarity=0.88,
+        )
+    ]
+    row = extract_field_for_scheme("icici_midcap_dg", "expense_ratio", chunks)
+    assert row.available is True
+    assert row.value == "0.89%"
+    assert "1.53" not in (row.value or "")
+    assert "1%" != row.value
+
+
+def test_ec_cmp_09_comparison_uses_field_retrieval_query(
+    no_llm_settings, mock_retriever
+):
+    result = process_query(
+        "Which of these 5 has the lowest expense ratio?",
+        settings=no_llm_settings,
+        retriever=mock_retriever,
+    )
+    assert result.intent == Intent.CROSS_SCHEME_COMPARISON
+    assert result.insufficient_context is False
+    assert UNAVAILABLE_LABEL not in (result.answer_text or "").lower()
+    assert "0.5%" in (result.answer_text or "")
+    for call in mock_retriever.retrieve_scheme.call_args_list:
+        query = call.args[0]
+        assert "which of these" not in query.lower()
+        assert "lowest" not in query.lower()
+        assert "expense ratio" in query.lower()
+        assert call.kwargs.get("fact_type") == "expense_ratio"
+
+
 def test_orchestrator_comparison_end_to_end(no_llm_settings, mock_retriever):
     result = process_query(
         "Which of these 5 has the lowest expense ratio?",

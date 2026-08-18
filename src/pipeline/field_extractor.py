@@ -34,9 +34,27 @@ FIELD_DISPLAY_NAMES: dict[str, str] = {
     "benchmark": "benchmark",
 }
 
+def field_retrieval_query(field: str) -> str:
+    """Embedding query for FR-4 retrieve — field labels, not ranking language."""
+    label = FIELD_DISPLAY_NAMES.get(field, field.replace("_", " "))
+    extras = {
+        "expense_ratio": "total expense ratio TER Direct Plan Growth",
+        "exit_load": "exit load redemption load",
+        "min_sip": "minimum SIP amount",
+        "lock_in": "lock-in period ELSS",
+        "riskometer": "riskometer risk level",
+        "benchmark": "benchmark index",
+    }
+    extra = extras.get(field, "")
+    return f"{label} {extra}".strip()
+
+
 # Regex fallbacks when LLM is unavailable or fails.
+_PERCENT = re.compile(r"(\d+(?:\.\d+)?)\s*%")
 _REGEX_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     "expense_ratio": (
+        # Kept for simple "Expense ratio is 0.65%" lines; dated INDmoney
+        # cards are handled by _extract_expense_ratio (skips "as on 31 Jul").
         re.compile(
             r"(?:expense\s*ratio|total\s*expense\s*ratio|\bter\b)"
             r"[^\d%]{0,60}(\d+(?:\.\d+)?\s*%)",
@@ -229,23 +247,67 @@ def extract_field_for_all_schemes(
 
 
 def _regex_extract(field: str, chunks: list[RetrievedChunk]) -> dict[str, str] | None:
+    tagged = [c for c in chunks if field in (c.fact_types or [])]
+    ordered = tagged + [c for c in chunks if c not in tagged]
     patterns = _REGEX_PATTERNS.get(field, ())
-    for chunk in chunks:
+    for chunk in ordered:
         text = chunk.text or ""
-        for pattern in patterns:
-            match = pattern.search(text)
-            if not match:
-                continue
-            value = match.group(1).strip() if match.lastindex else match.group(0).strip()
-            value = re.sub(r"\s+", " ", value).strip(" :,-")
-            if not value:
-                continue
-            return {
-                "value": value,
-                "source_url": chunk.source_url,
-                "scraped_at": chunk.scraped_at,
-            }
+        value: str | None = None
+        if field == "expense_ratio":
+            value = _extract_expense_ratio(text)
+        if value is None:
+            for pattern in patterns:
+                match = pattern.search(text)
+                if not match:
+                    continue
+                raw = match.group(1).strip() if match.lastindex else match.group(0).strip()
+                value = re.sub(r"\s+", " ", raw).strip(" :,-")
+                if value:
+                    break
+        if not value:
+            continue
+        return {
+            "value": value,
+            "source_url": chunk.source_url,
+            "scraped_at": chunk.scraped_at,
+        }
     return None
+
+
+def _extract_expense_ratio(text: str) -> str | None:
+    """Parse Direct-plan TER, skipping dates/numbers between the label and %."""
+    lower = text.lower()
+    label_idx: int | None = None
+    for label in ("total expense ratio", "expense ratio"):
+        found = lower.find(label)
+        if found >= 0:
+            label_idx = found
+            break
+    if label_idx is None:
+        ter = re.search(r"\bter\b", lower)
+        label_idx = ter.start() if ter else None
+    if label_idx is None:
+        return None
+
+    window = text[label_idx : label_idx + 500]
+    window_l = window.lower()
+    plausible: list[re.Match[str]] = []
+    for match in _PERCENT.finditer(window):
+        try:
+            amount = float(match.group(1))
+        except ValueError:
+            continue
+        # Direct-plan TER for these schemes is well under 6%.
+        if 0.01 <= amount <= 6.0:
+            plausible.append(match)
+    if not plausible:
+        return None
+
+    for match in plausible:
+        around = window_l[max(0, match.start() - 48) : match.end() + 24]
+        if re.search(r"\bdirect\b", around):
+            return f"{match.group(1)}%"
+    return f"{plausible[0].group(1)}%"
 
 
 def _finalize_llm_extract(

@@ -63,7 +63,7 @@ This document defines the end-to-end technical architecture for the INDmoney MF 
               └──────────────────────────────┘
 ```
 
-**Runtime model:** Stateless per request. No user accounts, no session history persistence beyond the in-browser chat UI, no PII logs.
+**Runtime model:** Stateless per request (no server session). The browser may send optional `prior_scheme_id` for a field-only follow-up. No user accounts, no chat-history persistence, no PII logs.
 
 ---
 
@@ -249,7 +249,7 @@ User message
          ├── out_of_corpus_fact_type ───────────► FR-10 + factsheet redirect
          ├── general_factual ───────────────────► retrieve GENERAL only
          ├── scheme_specific_factual ───────────► match scheme → retrieve SCHEME(scheme_id)
-         ├── cross_scheme_comparison ───────────► retrieve SCHEME for all 5 (per field)
+         ├── cross_scheme_comparison ───────────► retrieve SCHEME for all 5 (field-focused query)
          └── mixed ─────────────────────────────► factual path + append FR-7 refusal
          │
          ▼
@@ -324,6 +324,7 @@ Classifier must return **exactly one** of:
 - Wrong-scheme match is worse than no match → on low confidence or ambiguity → FR-9
 - For `cross_scheme_comparison`, scheme match may be “all five” without a single named scheme
 - For unsupported AMC/scheme names (e.g. HDFC Flexicap) → FR-9 without retrieval
+- **Field-only follow-up (EC-SCH-09):** if the client sends a valid `prior_scheme_id` and the new message is an in-scope field ask with no new scheme/AMC named (and is not a standalone definition / comparison / advice), resolve to that scheme. Do not default a scheme when `prior_scheme_id` is absent.
 
 ### 5.4 Stage 4 — Retrieval Routing (FR-3, FR-4)
 
@@ -344,8 +345,8 @@ Classifier must return **exactly one** of:
 **Cross-scheme (FR-4) — confirmed: extract structured fields → template:**
 
 - Allowed fields only: expense ratio, exit load, min SIP, lock-in, riskometer, benchmark
-- For each of the 5 schemes, retrieve scheme-filtered chunks for the requested field
-- **Extract** a structured record per scheme (LLM or rule/table parse), e.g.:
+- For each of the 5 schemes, retrieve scheme-filtered chunks using a **field-focused query** (e.g. `expense ratio … Direct Plan`), not the user’s ranking wording (`which of these 5 has the lowest…`). Ranking language is a poor embedding for the TER card.
+- **Extract** a structured record per scheme (rule/table parse first, LLM extract only if regex fails), e.g.:
   ```json
   {
     "scheme_id": "icici_flexicap_dg",
@@ -362,6 +363,7 @@ Classifier must return **exactly one** of:
   plus `Last updated from sources` derived from the cited chunk dates (per-scheme or earliest/latest policy — prefer showing the date tied to each citation when dates differ)
 - Factual comparative phrasing only when values support it (“Scheme A has a lower expense ratio than Scheme B”); never “better choice”
 - If extraction fails for a scheme → state that scheme’s value as unavailable from sources (still cite attempt scope / scheme page), do not guess
+- Expense-ratio parse must skip intervening dates/numbers (`as on 31 Jul 2026`) and prefer the **Direct** % when Direct and Regular are both listed (EC-CMP-09). A ranking question must not return all-unavailable when the scheme pages contain the field.
 
 ### 5.5 Stage 5 — Answer Composition (FR-5, FR-6, FR-8)
 
@@ -408,7 +410,7 @@ Pipeline stages must satisfy the cases in `EDGECASES.md`. Highest-priority rules
 | FR-9 vs FR-10 | Unsupported scheme ≠ out-of-corpus fact type — distinct copy | EC-UNS-*, EC-OOC-*, EC-OOC-04 |
 | Performance asks | Never compute/estimate returns under any framing | EC-INT-03, EC-INT-12, EC-CMP-03, EC-OOC-* |
 | PII | Gate before everything; refuse entire message; no echo/logs | EC-PII-*, EC-X-01 |
-| Comparison safety | Extract → template only; no “better choice”; no bare ranking without values | EC-CMP-02, EC-CMP-05, EC-CMP-06 |
+| Comparison safety | Extract → template only; field-focused retrieve; no “better choice”; no bare ranking without values | EC-CMP-02, EC-CMP-05, EC-CMP-06, EC-CMP-09 |
 | Empty / failed retrieval | “Not found in sources” — no model world knowledge | EC-RET-04, EC-ANS-04 |
 | Ingest failure | Keep last-good Chroma; no wipe on partial failure | EC-ING-01…03 |
 
@@ -433,6 +435,9 @@ Production: FastAPI also serves `web/dist` (React SPA) on the same origin. Local
 // POST /v1/chat request
 { "message": "What is the expense ratio of ICICI Flexicap?" }
 
+// Field-only follow-up (optional; browser-held last scheme)
+{ "message": "minimum sip amount?", "prior_scheme_id": "icici_nasdaq100_dg" }
+
 // POST /v1/chat response
 {
   "intent": "scheme_specific_factual",
@@ -447,7 +452,8 @@ Production: FastAPI also serves `web/dist` (React SPA) on the same origin. Local
   "comparison_field": null,
   "comparison_rows": [],
   "insufficient_context": false,
-  "corpus_available": true
+  "corpus_available": true,
+  "scheme_id": "icici_flexicap_dg"
 }
 ```
 
@@ -511,7 +517,7 @@ Prefer templates for FR-7/9/10/11 and for **all FR-4 comparisons** to guarantee 
 8. Loading: `Looking up approved sources…` (full JSON response; optional client typing indicator)
 9. Corpus unavailable: when `/health` or `corpus_available` is false (EC-X-04)
 
-**Non-requirements:** Auth, accounts, chat history server-side persistence, personalization, unauthenticated ingest from the UI.
+**Non-requirements:** Auth, accounts, chat history server-side persistence, personalization, unauthenticated ingest from the UI. Optional same-scheme field follow-up uses a client-held `prior_scheme_id` only (EC-SCH-09) — not a stored transcript.
 
 **Example questions (illustrative):**
 

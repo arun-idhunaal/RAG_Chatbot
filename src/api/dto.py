@@ -29,6 +29,10 @@ _DATE_STAMP_RE = re.compile(
 
 class ChatRequest(BaseModel):
     message: str = Field(default="", max_length=8000)
+    prior_scheme_id: str | None = Field(
+        default=None,
+        description="Last resolved supported scheme_id from the browser session (optional).",
+    )
 
 
 class CitationOut(BaseModel):
@@ -59,6 +63,7 @@ class ChatResponse(BaseModel):
     comparison_rows: list[ComparisonRowOut] = Field(default_factory=list)
     insufficient_context: bool = False
     corpus_available: bool = True
+    scheme_id: str | None = None
 
 
 class SchemeOut(BaseModel):
@@ -153,6 +158,7 @@ def pipeline_result_to_chat_response(result: PipelineResult) -> ChatResponse:
         comparison_rows=_rows_out(result.comparison_rows),
         insufficient_context=bool(result.insufficient_context),
         corpus_available=True,
+        scheme_id=result.scheme_id if not result.comparison_rows else None,
     )
 
 

@@ -94,6 +94,29 @@ def test_chat_pii_never_echoed(mock_retriever: MagicMock, no_llm_settings):
         mock_retriever.retrieve_scheme.assert_not_called()
 
 
+def test_chat_prior_scheme_followup(mock_retriever: MagicMock, no_llm_settings):
+    app = create_app(
+        settings=no_llm_settings,
+        retriever=mock_retriever,
+        health_fn=_ok_health,
+        load_retriever=False,
+    )
+    with TestClient(app) as client:
+        res = client.post(
+            "/v1/chat",
+            json={
+                "message": "minimum sip amount?",
+                "prior_scheme_id": "icici_nasdaq100_dg",
+            },
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["intent"] == "scheme_specific_factual"
+        assert body["scheme_id"] == "icici_nasdaq100_dg"
+        mock_retriever.retrieve_scheme.assert_called()
+        mock_retriever.retrieve_general.assert_not_called()
+
+
 def test_ui_config_has_fr12_copy_and_five_schemes(mock_retriever: MagicMock, no_llm_settings):
     app = create_app(
         settings=no_llm_settings,
@@ -118,6 +141,7 @@ def test_dto_omits_chunk_text():
     result = PipelineResult(
         intent=Intent.SCHEME_SPECIFIC_FACTUAL,
         original_message="secret user text",
+        scheme_id="icici_flexicap_dg",
         answer_text="The expense ratio is 0.5%.",
         citations=[
             Citation(
@@ -133,6 +157,7 @@ def test_dto_omits_chunk_text():
     assert "chunks" not in dumped
     assert dumped["citations"][0]["url"].startswith("https://")
     assert dumped["last_updated_from_sources"] == "2026-08-12"
+    assert dumped["scheme_id"] == "icici_flexicap_dg"
     assert "Last updated from sources: 2026-08-12" in dumped["answer_text"]
 
 

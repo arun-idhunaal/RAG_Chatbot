@@ -104,6 +104,7 @@ def create_app(
             body.message,
             settings=settings,
             retriever=application.state.retriever,
+            prior_scheme_id=body.prior_scheme_id,
         )
         latency_ms = (time.perf_counter() - t0) * 1000.0
         record_query_metric(
