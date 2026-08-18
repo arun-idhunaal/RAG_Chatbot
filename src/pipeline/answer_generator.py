@@ -103,8 +103,14 @@ def _safe_generate(
                 "Copy source_url values exactly from context only."
             )
         return llm_generate(query, chunks)
-    except Exception:  # noqa: BLE001 — fail closed
-        return {"insufficient_context": True, "answer_text": "", "citation_urls": []}
+    except Exception as exc:  # noqa: BLE001 — fail closed, but do not fake empty retrieval
+        return {
+            "llm_error": True,
+            "insufficient_context": False,
+            "answer_text": "",
+            "citation_urls": [],
+            "error": str(exc),
+        }
 
 
 def _finalize_draft(
@@ -113,6 +119,13 @@ def _finalize_draft(
     *,
     scheme_id: str | None,
 ) -> GeneratedAnswer | None:
+    if draft.get("llm_error"):
+        return GeneratedAnswer(
+            answer_text=UNABLE_TO_VERIFY_MESSAGE,
+            insufficient_context=True,
+            citation_validation_failed=True,
+        )
+
     if draft.get("insufficient_context"):
         return GeneratedAnswer(
             answer_text=NOT_FOUND_MESSAGE,

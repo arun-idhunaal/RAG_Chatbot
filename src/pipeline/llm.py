@@ -12,6 +12,17 @@ class LLMError(RuntimeError):
     """Raised when the LLM call fails."""
 
 
+# Groq retired llama-3.3-70b-versatile on 2026-08-16 (developer/free tier).
+_DEPRECATED_MODEL_ALIASES = {
+    "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+    "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+}
+
+
+def resolve_llm_model(model: str) -> str:
+    return _DEPRECATED_MODEL_ALIASES.get(model.strip(), model.strip())
+
+
 @lru_cache
 def _groq_client(api_key: str):
     from groq import Groq
@@ -30,10 +41,11 @@ def chat_json(
     if not settings.groq_api_key:
         raise LLMError("GROQ_API_KEY is not configured.")
 
+    model = resolve_llm_model(settings.llm_model)
     try:
         client = _groq_client(settings.groq_api_key)
         response = client.chat.completions.create(
-            model=settings.llm_model,
+            model=model,
             temperature=settings.llm_temperature,
             response_format={"type": "json_object"},
             messages=[

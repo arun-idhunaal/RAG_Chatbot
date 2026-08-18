@@ -28,7 +28,7 @@
   5. ICICI Prudential ELSS Tax Saver Fund (Direct Plan Growth)
 - **Fact types in scope:** expense ratio, exit load, minimum SIP, lock-in (ELSS), riskometer, benchmark, capital-gains/statement download process
 - **Fact types explicitly out of scope:** historical returns, performance vs. benchmark (see Section 6)
-- **Delivery format:** standalone web app with a chat UI
+- **Delivery format:** standalone **React** web app (Vite) backed by **FastAPI** (`POST /v1/chat`); one public HTTPS origin in production
 - **Data freshness:** live-scraped from the source URLs daily morning at 10.00 AM.
 
 ---
@@ -128,12 +128,15 @@ Every incoming query must be classified into exactly one of these before retriev
 - Nothing containing PII is persisted/logged.
 
 ### FR-12: UI Requirements (Standalone Web Chat App)
-**Behavior:** A minimal, self-contained chat interface.
+**Behavior:** A self-contained **React** chat interface calling FastAPI. Streamlit was an MVP only and is not the production surface.
 **Rules:**
 - Welcome message on load (facts-only framing stated up front).
-- 3 clickable example questions to seed first-time use.
-- Persistent, always-visible disclaimer (e.g., "Facts-only. No investment advice.") — not just shown once at welcome.
-- Every bot answer renders its citation as a clickable link and shows the `Last updated from sources` stamp inline, not hidden behind a tooltip or secondary click.
+- 3 clickable example questions to seed first-time use; each click sends the query through the live `POST /v1/chat` pipeline (not a hardcoded fake answer).
+- Persistent, always-visible (sticky) disclaimer (e.g., "Facts-only. No investment advice.") — not just shown once at welcome, and not hidden behind a tooltip.
+- Every bot answer renders its citation as a clickable link and shows the `Last updated from sources` stamp **inline**, not hidden behind a tooltip or secondary click.
+- Mixed answers (FR-8) render as **two distinct visual blocks**: a facts card (answer + citations + date) then a separate refusal — never blended into one paragraph.
+- Cross-scheme comparisons (FR-4) may render as a per-scheme table: each row shows the scheme’s value and its own citation; missing values as “unavailable from sources”; no “best/winner” styling that implies advice.
+- Unsupported-scheme answers (FR-9) list all 5 supported canonical scheme names in a readable list.
 
 ---
 
@@ -150,9 +153,9 @@ Every incoming query must be classified into exactly one of these before retriev
 ## 5. Non-Functional Requirements
 
 - **Citation correctness > latency.** A slow, correctly-cited answer is acceptable; a fast, wrongly-cited one is not.
-- **No auth, no user accounts, no persistent user data.** This is a stateless factual lookup tool.
-- **No PII storage anywhere in the pipeline** (ties directly to FR-11).
-- **Must be reachable via a shareable link** for submission — not a local-only script.
+- **No auth, no user accounts, no persistent user data.** This is a stateless factual lookup tool (chat transcript exists only in the browser).
+- **No PII storage anywhere in the pipeline** (ties directly to FR-11). The API must not echo PII-bearing user text.
+- **Must be reachable via a shareable HTTPS link** — FastAPI serving the React SPA (or reverse proxy to that origin); not a local-only script.
 
 ---
 
@@ -168,7 +171,7 @@ Every incoming query must be classified into exactly one of these before retriev
 
 ## 7. Acceptance Criteria
 
-- [ ] Prototype deployed as a standalone web app with a shareable link
+- [ ] Prototype deployed as a standalone **React + FastAPI** web app with a shareable HTTPS link
 - [ ] All 8 intent types in Section 2 are correctly classified and routed
 - [ ] Every factual answer (single-scheme and cross-scheme) includes ≥1 correct, specific citation and a per-answer date stamp
 - [ ] Cross-scheme comparisons never include performance/return framing
@@ -177,6 +180,6 @@ Every incoming query must be classified into exactly one of these before retriev
 - [ ] Unsupported-scheme queries list the 5 supported schemes
 - [ ] Out-of-corpus fact-type queries are distinguished from unsupported-scheme queries
 - [ ] PII inputs are refused and never stored or echoed
-- [ ] UI shows welcome message, 3 example questions, persistent disclaimer
+- [ ] UI shows welcome message, 3 example questions, persistent disclaimer (React SPA; FR-12)
 
 ---

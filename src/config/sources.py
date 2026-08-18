@@ -1,4 +1,8 @@
-"""SOURCE_LIST URLs for scheme and general corpora."""
+"""SOURCE_LIST URLs for scheme and general corpora.
+
+Canonical list: `DOCS/SOURCE_LIST_RAGMFCHATBOT.md` — 18 URLs
+(5 INDmoney scheme + 1 AMC FAQ + 9 SEBI + 3 AMFI).
+"""
 
 from __future__ import annotations
 
@@ -39,7 +43,7 @@ GENERAL_SOURCES: tuple[SourceConfig, ...] = (
         source_type="amc_faq",
         title="ICICI Prudential AMC Help Center FAQs",
     ),
-    # SEBI
+    # SEBI (9)
     SourceConfig(
         url="https://investor.sebi.gov.in/riskometer.html",
         corpus="general",
@@ -65,40 +69,10 @@ GENERAL_SOURCES: tuple[SourceConfig, ...] = (
         title="SEBI — Exchange Traded Funds",
     ),
     SourceConfig(
-        url="https://investor.sebi.gov.in/regular_and_direct_mutual_funds.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Regular and Direct Mutual Funds",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/thematic_sectoral_mutual_funds.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Thematic / Sectoral Mutual Funds",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/fund_of_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Fund of Fund",
-    ),
-    SourceConfig(
         url="https://investor.sebi.gov.in/elss.html",
         corpus="general",
         source_type="sebi",
         title="SEBI — ELSS",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/arbitrage_mutual_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Arbitrage Mutual Fund",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/open_ended_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Open Ended Fund",
     ),
     SourceConfig(
         url="https://investor.sebi.gov.in/new_fund_offer.html",
@@ -113,30 +87,6 @@ GENERAL_SOURCES: tuple[SourceConfig, ...] = (
         title="SEBI — Understanding Tracking Error",
     ),
     SourceConfig(
-        url="https://investor.sebi.gov.in/interval_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Interval Fund",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/index_mutual_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Index Mutual Fund",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/closed_ended_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Closed Ended Fund",
-    ),
-    SourceConfig(
-        url="https://investor.sebi.gov.in/balanced_fund.html",
-        corpus="general",
-        source_type="sebi",
-        title="SEBI — Balanced Fund",
-    ),
-    SourceConfig(
         url="https://investor.sebi.gov.in/exit_load.html",
         corpus="general",
         source_type="sebi",
@@ -148,7 +98,7 @@ GENERAL_SOURCES: tuple[SourceConfig, ...] = (
         source_type="sebi",
         title="SEBI — Brokers",
     ),
-    # AMFI
+    # AMFI (3)
     SourceConfig(
         url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=TypesOfMutualFundSchemes",
         corpus="general",
@@ -162,40 +112,10 @@ GENERAL_SOURCES: tuple[SourceConfig, ...] = (
         title="AMFI — Expense Ratio",
     ),
     SourceConfig(
-        url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=riskInMutualFunds",
-        corpus="general",
-        source_type="amfi",
-        title="AMFI — Risk in Mutual Funds",
-    ),
-    SourceConfig(
-        url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=AdvantagesOfInvestingInMutualFunds",
-        corpus="general",
-        source_type="amfi",
-        title="AMFI — Advantages of Investing in Mutual Funds",
-    ),
-    SourceConfig(
         url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=CategorizationOfMutualFundSchemes",
         corpus="general",
         source_type="amfi",
         title="AMFI — Categorization of Mutual Fund Schemes",
-    ),
-    SourceConfig(
-        url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=HistoryOfMutualFundsInIndia",
-        corpus="general",
-        source_type="amfi",
-        title="AMFI — History of Mutual Funds in India",
-    ),
-    SourceConfig(
-        url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=DirectPlan",
-        corpus="general",
-        source_type="amfi",
-        title="AMFI — Direct Plan",
-    ),
-    SourceConfig(
-        url="https://www.amfiindia.com/investor/knowledge-center-info?zoneName=CutOffTimingsAndNewRuleOnApplicableNAV",
-        corpus="general",
-        source_type="amfi",
-        title="AMFI — Cut-off Timings and Applicable NAV",
     ),
 )
 

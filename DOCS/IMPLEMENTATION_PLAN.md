@@ -1,12 +1,12 @@
 # Implementation Plan — INDmoney MF FAQ Chatbot (RAG)
 
-**Status:** v1 — Phases 1–6 implemented (deploy shareable URL: Streamlit Cloud / see `DOCS/DEPLOY.md`)  
+**Status:** v1 — Phases 1–7 implemented. Streamlit MVP removed; production UI is React + Vite + FastAPI.  
 **Based on:** `Architecture.md` (confirmed stack)  
 **Also aligns with:** `PRD_RAGMFCHATBOT.md`, `PRODUCT_BRIEF_RAGMFCHATBOT.md`  
 **Source inputs:** `SOURCE_LIST_RAGMFCHATBOT.md`, `SAMPLE_Q&A_RAGMFCHATBOT.md`  
 **Edge cases:** `EDGECASES.md` (required per-phase tests; S0/S1 = acceptance blockers)
 
-**Confirmed stack:** `bge-m3` · Chroma DB · Streamlit (Next.js optional later) · Hybrid classifier · Extract-then-template comparisons
+**Confirmed stack:** Playwright scrape · `bge-m3` · Chroma DB · Streamlit (Phase 5 MVP only) · **React + Vite + FastAPI (Phase 7 production)** · Hybrid classifier · Extract-then-template comparisons
 
 ---
 
@@ -20,10 +20,9 @@ Implement **one phase at a time**. Do not start the next phase until that phase�
 | **2** | Control Plane & Retrieval | PII → hybrid intent → scheme match → routed dual-corpus retrieval | EC-PII, EC-INT, EC-SCH, EC-RET |
 | **3** | Grounded Answers | Single-scheme + general factual answers with citations and date stamps | EC-ANS, EC-CIT, EC-RET-04 |
 | **4** | Comparisons & Guardrails | FR-4 extract→template; FR-7/8/9/10/11 refusals; citation validator | EC-CMP, EC-ADV, EC-MIX, EC-UNS, EC-OOC, EC-X |
-| **5** | Streamlit UI | Shareable chat UI meeting FR-12 | EC-UI-* |
+| **5** | Streamlit UI (MVP) | Local/MVP chat UI meeting FR-12 | EC-UI-* |
 | **6** | Eval, Freshness & Deploy | Daily 10:00 AM IST refresh, full edge-case eval, public URL, PRD acceptance | All EC-* suites |
-
-**Optional (after Phase 6):** Next.js UI rewrite — polish only, not required for PRD acceptance.
+| **7** | React + Vite + FastAPI | Production chat UI + HTTP API; Streamlit removed from runtime | EC-UI-*, EC-PII, EC-X-04 |
 
 ---
 
@@ -39,8 +38,10 @@ Implement **one phase at a time**. Do not start the next phase until that phase�
 ```
 RAG_Chatbot/
 ├── DOCS/                # includes EDGECASES.md, IMPLEMENTATION_PLAN.md, Architecture.md
-├── app/                 # Streamlit (Phase 5)
+├── app/                 # Streamlit MVP (Phase 5) — remove at Phase 7 exit
+├── web/                 # React + Vite + TypeScript SPA (Phase 7)
 ├── src/
+│   ├── api/             # FastAPI (Phase 7) — POST /v1/chat, GET /health
 │   ├── ingestion/       # Phase 1
 │   ├── retrieval/       # Phase 2
 │   ├── pipeline/        # Phases 2–4
@@ -65,11 +66,11 @@ RAG_Chatbot/
    - Package layout under `src/`
    - `.env.example`, `.gitignore` (exclude `data/`, `.env`, caches)
 2. **Config**
-   - Load all SOURCE_LIST URLs (5 scheme + AMC FAQ + SEBI + AMFI)
+   - Load all **18** SOURCE_LIST URLs (5 scheme + 1 AMC FAQ + 9 SEBI + 3 AMFI)
    - Canonical `scheme_id`s, official names, and aliases (Architecture §3.2)
    - In-scope fact-type tags (`expense_ratio`, `exit_load`, `min_sip`, `lock_in`, `riskometer`, `benchmark`, `statement_download`)
 3. **Ingestion pipeline**
-   - Fetch HTML (`httpx`/`requests` + BeautifulSoup; Playwright only if needed)
+   - Fetch HTML with **Playwright** (headless Chromium) so JS-rendered INDmoney / AMFI / AMC pages yield real content; **BeautifulSoup** for cleaning only; `httpx` fallback if Playwright cannot run (restricted hosts)
    - Clean: strip nav/ads; preserve fact tables; avoid cross-scheme contamination (**EC-ING-06**)
    - Chunk: structure-aware (~400–700 tokens, 50–80 overlap)
    - Attach metadata: `corpus`, `scheme_id`, `fact_types`, `source_url`, `source_title`, `page_ref`, `scraped_at`, `content_hash`
@@ -146,7 +147,7 @@ Nothing (first phase).
 
 ### Out of scope this phase
 
-Final answer prose, comparison templates, Streamlit UI.
+Final answer prose, comparison templates, chat UI.
 
 ### Depends on
 
@@ -242,7 +243,7 @@ Phase 2.
 
 ### Out of scope this phase
 
-Polished Streamlit chrome (can use CLI/API only).
+Polished chat chrome (can use CLI/API only).
 
 ### Depends on
 
@@ -250,9 +251,9 @@ Phase 3.
 
 ---
 
-## Phase 5 — Streamlit UI (FR-12)
+## Phase 5 — Streamlit UI (FR-12, MVP)
 
-**Goal:** Ship the standalone chat experience described in the Product Brief and PRD.
+**Goal:** Ship a standalone MVP chat experience described in the Product Brief and PRD. **Superseded at runtime by Phase 7** (React + FastAPI); keep this phase as the completed FR-12 proof on Streamlit.
 
 ### Scope
 
@@ -287,7 +288,7 @@ Phase 3.
 
 ### Out of scope this phase
 
-Production hosting, daily cron, Next.js.
+Production hosting, daily cron, React rewrite (Phase 7).
 
 ### Depends on
 
@@ -308,12 +309,12 @@ Phase 4.
    - Release gate: **S0** fail → block release; **S1** fail → block PRD acceptance
 2. **Daily freshness**
    - Scheduler / GitHub Action / cron at **10:00 AM IST**
-   - Full scrape → re-embed changed content → Chroma upsert
+   - Full **Playwright** scrape of all 18 SOURCE_LIST URLs → re-embed changed content → Chroma upsert
    - Keep last-good chunks on single-URL failure (**EC-ING-01**, Architecture §4.6)
    - Post-ingest health check (collections non-empty + sample query); cold-start fail closed (**EC-X-04**)
 3. **Deploy**
-   - Host Streamlit app (Community Cloud / Railway / Render)
-   - Public HTTPS shareable URL
+   - Host the MVP Streamlit app if needed for an interim shareable URL (Community Cloud / Railway / Render)
+   - **Production shareable URL (Phase 7):** FastAPI serving the React SPA (Railway / Render / Fly) — one HTTPS origin
    - Env-based secrets only
 4. **Acceptance sign-off**
    - Walk PRD §7 checklist end-to-end on the deployed URL
@@ -344,11 +345,80 @@ Phase 4.
 
 ### Out of scope this phase
 
-Next.js rewrite (optional follow-on only).
+React + Vite + FastAPI production UI (Phase 7).
 
 ### Depends on
 
-Phase 5.
+Phase 5 (MVP UI for interim demo). Pipeline itself only depends on Phase 4.
+
+---
+
+## Phase 7 — React + Vite + FastAPI (production UI)
+
+**Goal:** Replace Streamlit with a production chat UI and HTTP API. Meet FR-12 and `EC-UI-*` on the React app. Streamlit is not required to run the product after this phase’s exit.
+
+### Scope
+
+1. **FastAPI app (`src/api/`)**
+   - App lifespan: singleton `Retriever` (same role as Streamlit `@st.cache_resource`)
+   - `GET /health` — reuse `check_index_health` (EC-X-04 fail closed when index empty)
+   - `POST /v1/chat` — `{ "message": "..." }` → `process_query` → JSON DTO (Architecture §6.1)
+   - DTO fields: `intent`, `answer_text`, `refusal_message`, `refusal_appended`, `citations[]`, `last_updated_from_sources`, `supported_schemes`, `comparison_field`, `comparison_rows`, `insufficient_context`, `corpus_available`
+   - **Never** leak retrieved chunk text to the client
+   - **PII:** if intent is `pii`, do not return `original_message`; client shows `[Message not shown — personal information detected]`
+   - **Do not** expose unauthenticated ingest / “Build index” on the public chat UI. Ingest stays CLI / scheduled job (`scripts/ingest.py`, daily refresh)
+2. **API tests**
+   - Contract tests for `/v1/chat` and `/health`
+   - PII request body never echoed in the response
+   - Empty / unhealthy index → `corpus_available: false` and safe copy (EC-X-04)
+3. **React + Vite + TypeScript (`web/`)**
+   - Welcome + facts-only framing; 3 example questions (same copy as `app/ui_copy.py`)
+   - Sticky / always-visible disclaimer: `Facts-only. No investment advice.` (EC-UI-02)
+   - Chat transcript (browser session only; no server-side user history)
+   - Mixed answers: two distinct visual blocks — facts (citations + date) then refusal (EC-UI-04)
+   - Comparisons: table from `comparison_rows` (per-scheme value + citation); missing = “Unavailable from sources”
+   - Citation links + inline `Last updated from sources: YYYY-MM-DD` (EC-UI-03)
+   - FR-9: list all 5 canonical scheme names (EC-UI-05)
+   - Loading caption: `Looking up approved sources…`
+   - Corpus-unavailable state when `/health` or `corpus_available` fails
+   - Example chips call the live `POST /v1/chat` pipeline (EC-UI-06) — not hardcoded answers
+4. **Wire-up & deploy**
+   - Local: Vite (`localhost:5173`) → FastAPI with CORS allowlist for that origin only
+   - Production: FastAPI serves `web/dist` (single public HTTPS origin)
+   - Docker Compose listen on **8000** (replace Streamlit **8501**)
+5. **EC-UI tests**
+   - Move/adapt `tests/test_ec_ui.py` to shared copy constants + DTO helpers (not Streamlit markdown)
+6. **Remove Streamlit from runtime**
+   - Drop `streamlit` dependency, `app/streamlit_app.py`, `.streamlit/`
+   - Production shareable URL is FastAPI + React only
+
+### Deliverables
+
+- [x] FastAPI `GET /health` and `POST /v1/chat`
+- [x] JSON DTO matching Architecture §6.1 (no chunk leak, no PII echo)
+- [x] `web/` React SPA meeting FR-12 / EC-UI-01…06
+- [x] Production static mount + Docker port 8000
+- [x] Streamlit removed from runtime dependencies
+- [x] API + adapted EC-UI tests
+
+### Exit criteria
+
+- Public shareable URL is FastAPI serving the React SPA (not Streamlit)
+- Welcome + 3 examples on load (**EC-UI-01**); disclaimer always visible (**EC-UI-02**)
+- Factual answers show clickable citations + inline date stamp (**EC-UI-03**)
+- Mixed answers are two distinct blocks (**EC-UI-04**); FR-9 lists all 5 names (**EC-UI-05**)
+- Example questions hit the live API/pipeline (**EC-UI-06**)
+- PII path uses the client placeholder and never returns the raw message
+- Comparison rows include per-scheme citations; no advice / returns chrome
+- Streamlit is not required to run or deploy the product
+
+### Out of scope this phase
+
+New RAG features, multi-AMC, auth/accounts, streaming tokens (full JSON response is sufficient; client may show a typing indicator while waiting).
+
+### Depends on
+
+Phase 4 (orchestrator). Phase 5 Streamlit is **not** a runtime dependency.
 
 ---
 
@@ -366,13 +436,12 @@ Phase 3 Grounded Answers
     ▼
 Phase 4 Comparisons & Guardrails
     │
-    ▼
-Phase 5 Streamlit UI
+    ├──► Phase 5 Streamlit UI (MVP)
+    │         │
+    │         ▼
+    │    Phase 6 Eval, Freshness & Deploy
     │
-    ▼
-Phase 6 Eval, Freshness & Deploy
-    │
-    ╰──► (Optional) Next.js UI polish
+    ╰──► Phase 7 React + Vite + FastAPI (production UI; replaces Streamlit)
 ```
 
 ---
@@ -381,15 +450,16 @@ Phase 6 Eval, Freshness & Deploy
 
 | Phase | First | Then | Last |
 |---|---|---|---|
-| 1 | Config + scheme IDs | Scrape/clean/chunk (anti-contamination) | bge-m3 + Chroma upsert + EC-ING checks |
+| 1 | Config + 18 SOURCE_LIST URLs | Playwright scrape / clean / chunk (anti-contamination) | bge-m3 + Chroma upsert + EC-ING checks |
 | 2 | PII gate | Hybrid classifier + scheme resolver | Metadata-filtered retriever + EC-INT/SCH/RET tests |
 | 3 | Generator prompt + schema | Wire scheme/general paths | Citation URL checks (EC-CIT) |
 | 4 | Refusal templates | Field extract + comparison template | Full orchestrator + EC-CMP/UNS/OOC/MIX |
 | 5 | Welcome / disclaimer / examples | Chat loop | EC-UI rendering checks |
 | 6 | Eval cases from EDGECASES.md §12 | Cron ingest | Deploy + PRD + S0/S1 gate |
+| 7 | FastAPI `/v1/chat` + `/health` DTO | React FR-12 screens | Static mount, Docker 8000, remove Streamlit |
 
 ---
 
 ## Definition of Done (project)
 
-The project is done when Phase 6 exit criteria are all checked, the deployed Streamlit app can be shared as the submission link, and **`EDGECASES.md` has no open S0/S1 failures**. Next.js is explicitly **not** part of the six-phase critical path.
+The project is done when Phase 6 quality gates are met, **Phase 7** is complete (deployed FastAPI + React SPA as the shareable URL, Streamlit removed from runtime), and **`EDGECASES.md` has no open S0/S1 failures**. Next.js is not part of the plan.

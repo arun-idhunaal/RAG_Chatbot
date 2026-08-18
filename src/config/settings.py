@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # EC-ING-08: bge-m3 only — do not change collection embedding model.
     embedding_model: str = Field(default="BAAI/bge-m3")
     embedding_batch_size: int = Field(default=8)
+    # local = sentence-transformers (RAM heavy). huggingface = Inference API (Render Free).
+    embedding_backend: str = Field(default="local")
+    hf_token: str = Field(default="")
 
     http_timeout_seconds: float = Field(default=30.0)
     http_max_retries: int = Field(default=2)
@@ -38,7 +41,7 @@ class Settings(BaseSettings):
             "Chrome/120.0.0.0 Safari/537.36"
         )
     )
-    allow_playwright: bool = Field(default=False)
+    allow_playwright: bool = Field(default=True)
     playwright_wait_ms: int = Field(default=4000)
 
     # Chunking (Architecture §4.4)
@@ -58,9 +61,21 @@ class Settings(BaseSettings):
 
     # LLM — Groq (hybrid intent classifier + later generation stages)
     groq_api_key: str = Field(default="")
-    llm_model: str = Field(default="llama-3.3-70b-versatile")
+    llm_model: str = Field(default="openai/gpt-oss-120b")
     llm_temperature: float = Field(default=0.0)
     use_llm_classifier: bool = Field(default=True)
+
+    # Phase 7 — FastAPI + React
+    cors_origins: str = Field(default="http://localhost:5173")
+    web_dist_dir: Path = Field(default=_REPO_ROOT / "web" / "dist")
+
+    # Render / ops — token-gated ingest (never expose unauthenticated refresh)
+    ingest_token: str = Field(default="")
+    auto_ingest_on_empty: bool = Field(default=False)
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def repo_root(self) -> Path:

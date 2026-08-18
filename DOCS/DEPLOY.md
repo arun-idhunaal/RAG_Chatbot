@@ -1,58 +1,55 @@
-# Deploy guide — Phase 6 (public shareable URL)
+# Deploy on Render — Free plan only
 
-**Repo:** https://github.com/arun-idhunaal/RAG_Chatbot
+This project is configured for Render’s **Free web service** (Hobby workspace): **512 MB RAM, 0.1 CPU, no disk**. That is the largest no-cost web instance Render offers.
 
-## Option A — Streamlit Community Cloud (fastest shareable link)
+## What Free includes / does not
 
-**One-click deploy form (prefilled):**  
-https://share.streamlit.io/deploy?repository=arun-idhunaal/RAG_Chatbot&branch=master&mainModule=app/streamlit_app.py
+| Free includes | Free does not |
+|---|---|
+| HTTPS URL, Docker, `/health` | Persistent disk (filesystem is wiped on spin-down/redeploy) |
+| 512 MB RAM / 0.1 CPU | Enough RAM to load local `bge-m3` + PyTorch |
+| 750 instance hours / month | Always-on (sleeps after **15 minutes** idle; ~1 minute to wake) |
+| Env vars + TLS | SSH, one-off jobs, extra instances |
 
-1. Open the link above (sign in with GitHub if prompted).
-2. Confirm:
-   - Repository: `arun-idhunaal/RAG_Chatbot`
-   - Branch: `master`
-   - Main file: `app/streamlit_app.py`
-3. Open **Advanced settings → Secrets** and paste:
+Because of 512 MB, the image **does not** install torch, sentence-transformers, or Playwright. Embeddings still use **`BAAI/bge-m3`** via the **Hugging Face Inference API**. Scrape uses **httpx** (some JS-heavy pages may yield thinner chunks than local Playwright).
 
-```toml
-GROQ_API_KEY = "gsk_..."
-LLM_MODEL = "llama-3.3-70b-versatile"
-USE_LLM_CLASSIFIER = "true"
-ALLOW_PLAYWRIGHT = "false"
-```
+## Secrets (required)
 
-4. Click **Deploy**.
-5. After the app boots, if you see “knowledge base unavailable”, use the sidebar **Build / refresh index** button once (first scrape + `bge-m3` embed can take several minutes).
+Create a [Hugging Face token](https://huggingface.co/settings/tokens) with inference access.
 
-App URL shape: `https://<app-name>.streamlit.app`
+| Key | Where |
+|---|---|
+| `GROQ_API_KEY` | Groq |
+| `HF_TOKEN` | Hugging Face |
+| `INGEST_TOKEN` | Any long random string (optional but recommended) |
 
-> Note: Community Cloud disk is ephemeral. Reboot may wipe Chroma — re-run **Build / refresh index**. For durable daily 10:00 AM IST freshness, use Option B.
+## Deploy
 
-## Option B — Railway / Render (Docker + volume) — recommended for freshness
+1. Push this repo to GitHub.
+2. Render → **New** → **Blueprint** (uses `render.yaml`), or **Web Service** → Docker → instance type **Free**.
+3. Fill in `GROQ_API_KEY`, `HF_TOKEN`, `INGEST_TOKEN`.
+4. Health check path: `/health`.
+5. First boot: service becomes Live quickly; ingest runs **in the background**. The UI stays fail-closed until `/health` shows `"ok": true` (can take several minutes).
+6. After idle, Render sleeps the service. The next visit waits ~1 minute, then ingest may run again (ephemeral disk).
 
-1. Connect https://github.com/arun-idhunaal/RAG_Chatbot.git
-2. Use the root `Dockerfile`.
-3. Mount a persistent volume at `/app/data`.
-4. Set env: `GROQ_API_KEY`, `PORT=8501`.
-5. Entrypoint runs health check → ingest on cold start → Streamlit.
-6. Schedule `python -m scripts.daily_refresh` via host cron **or** rely on `.github/workflows/daily_ingest.yml` plus volume sync.
-
-Public URL will look like `https://<service>.up.railway.app` or Render’s HTTPS URL.
-
-## Option C — Local + tunnel (dev only)
+Manual refresh (wakes the service too):
 
 ```bash
-streamlit run app/streamlit_app.py
+curl -X POST "https://YOUR-SERVICE.onrender.com/v1/admin/ingest" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
 ```
 
-Not acceptable for PRD §7 shareable-link acceptance.
+## GitHub daily job (10:00 AM IST)
 
-## Daily freshness (10:00 AM IST)
+Repo **Settings → Secrets**:
 
-- Workflow: `.github/workflows/daily_ingest.yml` (`cron: 30 4 * * *` UTC = 10:00 IST)
-- Local/cron: `python -m scripts.daily_refresh`
-- Health: `python -m scripts.health_check`
+- `RENDER_INGEST_URL` = `https://YOUR-SERVICE.onrender.com/v1/admin/ingest`
+- `INGEST_TOKEN` = same as Render
 
-## After deploy — acceptance
+This pings the live app (and wakes it). It cannot store Chroma on GitHub for Render — Free has no disk to keep.
 
-Walk `DOCS/ACCEPTANCE_CHECKLIST.md` on the live URL, including EC-X-01…03 spot checks.
+## Honest limits
+
+- **Cold starts** are slow; first answers after sleep wait for wake + possible re-ingest.
+- **Index quality** on Free is weaker than a local Playwright ingest if INDmoney/AMFI pages are JS-only.
+- If the process is **killed for RAM**, check Render logs; keep `EMBEDDING_BACKEND=huggingface` and do not install torch on this service.

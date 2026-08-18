@@ -39,6 +39,13 @@ data/eval/
 .huggingface/
 models/
 
+# Frontend
+web/node_modules/
+web/dist/
+
+# Stitch extract (local only)
+DOCS/_stitch_extract/
+
 # IDE
 .idea/
 .vscode/

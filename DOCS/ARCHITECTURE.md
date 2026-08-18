@@ -4,7 +4,7 @@
 **Scope:** ICICI Prudential AMC, 5 schemes  
 **Companion docs:** `PRODUCT_BRIEF_RAGMFCHATBOT.md`, `PRD_RAGMFCHATBOT.md`, `SOURCE_LIST_RAGMFCHATBOT.md`, `SAMPLE_Q&A_RAGMFCHATBOT.md`, `IMPLEMENTATION_PLAN.md`, `EDGECASES.md`
 
-**Confirmed stack:** `bge-m3` · Chroma DB · Streamlit (Next.js optional later) · Hybrid classifier · Extract-then-template comparisons
+**Confirmed stack:** Playwright scrape · `bge-m3` · Chroma DB · Streamlit (Phase 5 MVP only) · **React + Vite + FastAPI (Phase 7 production)** · Hybrid classifier · Extract-then-template comparisons
 
 **Edge cases:** Full catalog in `EDGECASES.md` (IDs `EC-*`). S0/S1 failures block acceptance.
 
@@ -28,20 +28,20 @@ This document defines the end-to-end technical architecture for the INDmoney MF 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                        STANDALONE WEB CHAT APP                           │
+│              STANDALONE WEB CHAT APP (React + Vite SPA)                  │
 │  Welcome · 3 example Qs · Persistent disclaimer · Citations + date stamp │
 └─────────────────────────────────┬────────────────────────────────────────┘
-                                  │ HTTPS
+                                  │ HTTPS  POST /v1/chat
                                   ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                           API / ORCHESTRATOR                             │
+│                    FASTAPI  (serves SPA dist in prod)                    │
 │  PII → Hybrid intent → Scheme match → Route → Retrieve → Gen/Template    │
 └───────────────┬───────────────────────────────┬──────────────────────────┘
                 │                               │
                 ▼                               ▼
 ┌───────────────────────────┐     ┌─────────────────────────────────────────┐
 │   SCHEME CORPUS (Chroma)  │     │   GENERAL CORPUS (Chroma)               │
-│   5 INDmoney scheme pages │     │   AMC FAQ · SEBI · AMFI pages           │
+│   5 INDmoney scheme pages │     │   13 pages: AMC FAQ · SEBI · AMFI       │
 │   embeddings: bge-m3      │     │   embeddings: bge-m3                    │
 │   metadata: scheme_id,    │     │   metadata: source_type, url, scraped_at│
 │   fact_type, url, date    │     │                                         │
@@ -58,8 +58,8 @@ This document defines the end-to-end technical architecture for the INDmoney MF 
                              │
                              ▼
               ┌──────────────────────────────┐
-              │  SOURCE_LIST URLs            │
-              │  (scheme + non-scheme)       │
+              │  SOURCE_LIST URLs (18)       │
+              │  5 scheme + 13 general       │
               └──────────────────────────────┘
 ```
 
@@ -71,22 +71,22 @@ This document defines the end-to-end technical architecture for the INDmoney MF 
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| **Frontend** | **Streamlit** (v1). Next.js optional later as a final polish step | Fastest path to a shareable PRD-compliant chat UI; Next.js only if needed after Streamlit works |
-| **API / Orchestration** | Python FastAPI (or Streamlit-native if single process) | Clear request pipeline; easy to unit-test each FR stage |
-| **Scraping** | `httpx` / `requests` + BeautifulSoup; Playwright only if JS-rendered pages fail | Source list is mostly public HTML |
+| **Frontend** | **React + Vite + TypeScript** (Phase 7 production). Streamlit was Phase 5 MVP only | Polished FR-12 chat UI; single SPA origin in production |
+| **API / Orchestration** | **FastAPI** wrapping `process_query` | Clear HTTP contract; `GET /health`, `POST /v1/chat`; easy to unit-test each FR stage |
+| **Scraping** | **Playwright** (headless Chromium) to render and fetch HTML; BeautifulSoup to clean extracted DOM | INDmoney, AMFI, and AMC pages are JS-rendered; static `httpx` often returns shells/challenges. `httpx` is fallback only if Playwright cannot run |
 | **Chunking / RAG framework** | LangChain or LlamaIndex | Document loaders, metadata filters, citation plumbing |
 | **Embeddings** | **`BAAI/bge-m3`** | Confirmed embedding model; strong multilingual/retrieval quality for short factual chunks; runs locally or via compatible hosting |
-| **Vector DB** | **Chroma DB** | Confirmed store; metadata filtering is mandatory for FR-3; sufficient for 5 schemes + ~25 general pages |
+| **Vector DB** | **Chroma DB** | Confirmed store; metadata filtering is mandatory for FR-3; sufficient for 5 schemes + 13 general pages (18 URLs total) |
 | **LLM (generation)** | GPT-4o-mini / Claude Haiku-class (primary); used also as hybrid classifier LLM stage | Constrained factual rewrite / field extraction, not open-ended reasoning |
 | **Intent classifier** | **Hybrid** — keyword/regex rules pre-filter + LLM structured-output label | Must emit exactly one of 8 taxonomy labels (FR-1); rules bias advisory / out-of-corpus / mixed before LLM confirms |
 | **Comparison answers** | **Extract structured fields → deterministic template** | Safer citations than free-form LLM comparison prose (FR-4, FR-6) |
 | **Scheme matcher** | Fuzzy string match (`rapidfuzz`) over canonical scheme names + aliases | FR-2; conservative threshold |
 | **PII detector** | Regex + lightweight NER patterns (PAN, Aadhaar, phone, email, OTP, account) | FR-11; run before any LLM/log |
 | **Scheduler** | Cron / GitHub Actions / cloud scheduler at 10:00 IST daily | Freshness model from PRD §1 |
-| **Hosting** | Streamlit Community Cloud, Railway, or Render | Must expose a shareable public URL (NFR) |
+| **Hosting** | Railway, Render, or Fly (FastAPI + static SPA) | Must expose a shareable public HTTPS URL (NFR). Not Streamlit Community Cloud |
 | **Secrets** | Env vars only (LLM API keys); never in repo | Compliance |
 
-**Confirmed build target:** Streamlit UI + in-process or FastAPI orchestrator + **Chroma DB** + **bge-m3** embeddings + hybrid classifier + extract-then-template comparisons + daily cron scrape.
+**Confirmed build target:** **React + Vite SPA** + **FastAPI** (`POST /v1/chat`) + **Playwright ingest** + **Chroma DB** + **bge-m3** embeddings + hybrid classifier + extract-then-template comparisons + daily cron scrape. Streamlit remains a completed Phase 5 MVP only and is removed at Phase 7 exit.
 
 ---
 
@@ -97,7 +97,7 @@ This document defines the end-to-end technical architecture for the INDmoney MF 
 | Corpus | Sources | Used for intents |
 |---|---|---|
 | **Scheme corpus** | 5 INDmoney ICICI Prudential scheme URLs | Scheme-specific factual, Cross-scheme comparison, Mixed (factual part), Out-of-corpus fact-type redirect |
-| **General corpus** | ICICI Pru AMC FAQ, SEBI investor pages, AMFI knowledge-center pages | General factual (non-scheme) |
+| **General corpus** | 13 pages: ICICI Pru AMC FAQ (1) · SEBI investor pages (9) · AMFI knowledge-center pages (3) | General factual (non-scheme) |
 
 **Hard rule (FR-3):** Never retrieve scheme facts from general pages, and never retrieve general definitions from scheme pages in the same retrieval call. Comparators pull **only** from the scheme corpus, filtered per `scheme_id`.
 
@@ -156,7 +156,7 @@ Every vector record:
 
 - **Frequency:** Daily at **10:00 AM IST**
 - **Trigger:** Cloud cron / GitHub Actions / host scheduler
-- **Idempotency:** Re-scrape all `SOURCE_LIST` URLs; upsert by `(source_url, content_hash)`; delete stale chunks for a URL when content changes
+- **Idempotency:** Re-scrape all **18** `SOURCE_LIST` URLs via Playwright; upsert by `(source_url, content_hash)`; delete stale chunks for a URL when content changes
 
 ### 4.2 Stages
 
@@ -164,7 +164,7 @@ Every vector record:
 SOURCE_LIST URLs
       │
       ▼
-[1] Fetch HTML (httpx; Playwright fallback)
+[1] Fetch HTML (Playwright; httpx fallback)
       │
       ▼
 [2] Extract main content (strip nav/ads/scripts)
@@ -220,7 +220,7 @@ SOURCE_LIST URLs
 | Failure | Behavior |
 |---|---|
 | Single URL scrape fail | Keep last-good chunks for that URL; mark `stale=true` in audit; alert |
-| Partial HTML / soft 403 | Retry with backoff; Playwright fallback once |
+| Partial HTML / soft 403 / JS shell | Retry Playwright; if Playwright is unavailable (restricted hosts), try `httpx` then keep last-good |
 | Embedding model/runtime failure | Abort upsert for that run; do not wipe existing Chroma index |
 | Empty extract | Do not delete prior chunks until a valid replace is confirmed |
 
@@ -418,24 +418,42 @@ Pipeline stages must satisfy the cases in `EDGECASES.md`. Highest-priority rules
 
 ### 6.1 Orchestrator (API)
 
-**Endpoint (illustrative):** `POST /chat`
+**Endpoints:**
+
+| Method | Path | Role |
+|---|---|---|
+| `POST` | `/v1/chat` | User message → pipeline DTO (no retrieved chunk text) |
+| `GET` | `/health` | Index health (`check_index_health`); fail closed when empty (EC-X-04) |
+
+Production: FastAPI also serves `web/dist` (React SPA) on the same origin. Local: Vite on `localhost:5173` with CORS allowlisted to that origin only.
+
+**Do not** expose unauthenticated ingest / “Build index” on the public chat API. Ingest remains CLI / scheduled job.
 
 ```json
-// request
+// POST /v1/chat request
 { "message": "What is the expense ratio of ICICI Flexicap?" }
 
-// response
+// POST /v1/chat response
 {
   "intent": "scheme_specific_factual",
   "answer_text": "...",
+  "refusal_message": null,
+  "refusal_appended": false,
   "citations": [
     { "title": "...", "url": "https://...", "page_ref": null }
   ],
   "last_updated_from_sources": "2026-08-12",
-  "refusal_appended": false,
-  "supported_schemes": null
+  "supported_schemes": [],
+  "comparison_field": null,
+  "comparison_rows": [],
+  "insufficient_context": false,
+  "corpus_available": true
 }
 ```
+
+**PII:** if `intent` is `pii`, do **not** include `original_message` (or any echo of the user text). The React client displays `[Message not shown — personal information detected]`.
+
+**Retriever:** constructed once in FastAPI app lifespan (singleton), analogous to Streamlit `@st.cache_resource`.
 
 Pipeline modules (testable units):
 
@@ -475,21 +493,25 @@ Prefer templates for FR-7/9/10/11 and for **all FR-4 comparisons** to guarantee 
 
 ## 7. UI Architecture (FR-12)
 
-**Surface:** Standalone **Streamlit** web chat app with shareable URL (confirmed for v1).  
-**Optional later:** Next.js rewrite as a final polish step — not required for acceptance.
+**Surface:** Standalone **React + Vite** SPA calling **FastAPI** `POST /v1/chat`, shareable as one HTTPS origin (FastAPI serves `web/dist` in production).  
+**MVP (completed):** Streamlit in `app/` — Phase 5 only; removed from runtime at Phase 7 exit. Not Next.js.
 
 **Required elements:**
 
 1. Welcome message stating facts-only framing on load
-2. Three clickable example questions (seed from Sample Q&A factual set)
-3. Persistent always-visible disclaimer: e.g. `Facts-only. No investment advice.`
+2. Three clickable example questions (seed from Sample Q&A factual set); clicks hit the live API, not hardcoded answers
+3. Persistent always-visible (sticky) disclaimer: e.g. `Facts-only. No investment advice.`
 4. Bot messages render:
    - Answer text
-   - Clickable citation link(s)
+   - Clickable citation link(s) inline (not tooltip-only)
    - Inline `Last updated from sources: [date]`
-5. Mixed answers: visual separation between fact block and refusal line
+5. Mixed answers: two distinct visual blocks (facts card with citations + date, then separate refusal)
+6. Cross-scheme comparisons: per-scheme table from `comparison_rows` (value + own citation); missing values as “Unavailable from sources”; no “best/winner” chrome
+7. FR-9: all 5 canonical scheme names readable
+8. Loading: `Looking up approved sources…` (full JSON response; optional client typing indicator)
+9. Corpus unavailable: when `/health` or `corpus_available` is false (EC-X-04)
 
-**Non-requirements:** Auth, accounts, chat history server-side persistence, personalization.
+**Non-requirements:** Auth, accounts, chat history server-side persistence, personalization, unauthenticated ingest from the UI.
 
 **Example questions (illustrative):**
 
@@ -518,9 +540,9 @@ Prefer templates for FR-7/9/10/11 and for **all FR-4 comparisons** to guarantee 
 | NFR | Approach |
 |---|---|
 | Citation correctness > latency | Allow multi-step retrieval for comparisons; validate citations before return |
-| Shareable link | Deploy Streamlit hosted app (not localhost-only) |
-| Freshness | Daily 10:00 AM IST full refresh; per-answer `scraped_at` from cited chunk |
-| Scale (v1) | 5 schemes + ~25 general pages → single small vector index is sufficient |
+| Shareable link | Deploy FastAPI + React SPA (one public HTTPS origin; not localhost-only) |
+| Freshness | Daily 10:00 AM IST Playwright refresh of 18 URLs; per-answer `scraped_at` from cited chunk |
+| Scale (v1) | 18 SOURCE_LIST URLs (5 scheme + 13 general) → single small vector index is sufficient |
 
 ---
 
@@ -539,7 +561,7 @@ Prefer templates for FR-7/9/10/11 and for **all FR-4 comparisons** to guarantee 
 | FR-9 | Unsupported / low-confidence match handler listing 5 schemes |
 | FR-10 | Out-of-corpus intent + factsheet/source redirect, no computation |
 | FR-11 | Pre-pipeline PII gate |
-| FR-12 | Streamlit chat UI: welcome, 3 examples, persistent disclaimer, inline citations/date |
+| FR-12 | React chat UI + FastAPI: welcome, 3 examples, sticky disclaimer, inline citations/date, mixed two-block, comparison table |
 | NFR | Stateless deploy, no PII logs, public URL, correctness-first |
 
 ---
@@ -549,7 +571,7 @@ Prefer templates for FR-7/9/10/11 and for **all FR-4 comparisons** to guarantee 
 ### 11.1 Scheme-specific factual
 
 ```
-User → UI → API
+User → React SPA → FastAPI POST /v1/chat
 API → PIIGate (pass)
 API → Classifier(hybrid) → scheme_specific_factual
 API → SchemeResolver → icici_flexicap_dg
@@ -563,7 +585,7 @@ API → UI → User
 ### 11.2 Advisory
 
 ```
-User → UI → API
+User → React SPA → FastAPI POST /v1/chat
 API → PIIGate (pass)
 API → Classifier(hybrid) → advisory
 API → RefusalTemplate(FR-7) → UI → User
@@ -573,7 +595,7 @@ API → RefusalTemplate(FR-7) → UI → User
 ### 11.3 Mixed
 
 ```
-User → UI → API
+User → React SPA → FastAPI POST /v1/chat
 API → Classifier(hybrid) → mixed
 API → SchemeResolver + Retriever + Generator  → factual block
 API → Append FR-7 refusal line
@@ -583,7 +605,7 @@ API → UI (two distinct blocks) → User
 ### 11.4 Cross-scheme comparison
 
 ```
-User → UI → API
+User → React SPA → FastAPI POST /v1/chat
 API → Classifier(hybrid) → cross_scheme_comparison
 API → for scheme in [5]: Retriever(scheme_id, fact_field) → Chroma
 API → FieldExtractor → structured rows[{value, source_url, scraped_at}, ...]
@@ -652,9 +674,11 @@ RAG_Chatbot/
 │   ├── Architecture.md
 │   ├── IMPLEMENTATION_PLAN.md
 │   └── EDGECASES.md
-├── app/                    # Streamlit UI (v1); Next.js optional later
+├── app/                    # Streamlit MVP (Phase 5); remove at Phase 7 exit
+├── web/                    # React + Vite + TypeScript SPA (Phase 7)
 ├── src/
-│   ├── ingestion/          # scrape, clean, chunk, bge-m3 embed, Chroma upsert
+│   ├── api/                # FastAPI: POST /v1/chat, GET /health, serve web/dist
+│   ├── ingestion/          # Playwright scrape, clean, chunk, bge-m3 embed, Chroma upsert
 │   ├── retrieval/          # corpus filters, Chroma query
 │   ├── pipeline/           # pii, hybrid intent, scheme match, extract, generate, template, validate
 │   ├── prompts/
@@ -673,15 +697,15 @@ RAG_Chatbot/
 
 Detailed phase exit criteria and edge-case IDs: see `IMPLEMENTATION_PLAN.md`.
 
-1. **Corpus v1:** Scrape SOURCE_LIST → clean → chunk → **bge-m3** embed → **Chroma** with metadata (EC-ING)  
+1. **Corpus v1:** Playwright-scrape all 18 SOURCE_LIST URLs → clean → chunk → **bge-m3** embed → **Chroma** with metadata (EC-ING)  
 2. **Pipeline v1:** PII → **hybrid intent** → scheme match → routed retrieval → cited answers (EC-PII, EC-INT, EC-SCH, EC-RET)  
 3. **Comparisons:** Field extractor + deterministic template (FR-4) (EC-CMP)  
 4. **Guardrails:** Refusal templates for FR-7/9/10/11; citation validator (EC-ADV, EC-MIX, EC-UNS, EC-OOC, EC-CIT)  
-5. **UI v1 (Streamlit):** Welcome, examples, disclaimer, citation + date rendering (EC-UI)  
+5. **UI v1 (Streamlit MVP):** Welcome, examples, disclaimer, citation + date rendering (EC-UI)  
 6. **Scheduler:** Daily 10:00 AM IST refresh  
 7. **Eval:** Sample Q&A + `EDGECASES.md` + PRD acceptance checklist  
-8. **Deploy:** Public shareable URL for submission  
-9. **Optional:** Next.js UI rewrite (post-acceptance polish only)
+8. **Deploy:** Public shareable URL (interim Streamlit optional; production = Phase 7)  
+9. **Phase 7:** React + Vite + FastAPI cutover — replace Streamlit; FastAPI serves SPA; Docker port 8000
 
 ---
 
@@ -691,13 +715,16 @@ Detailed phase exit criteria and edge-case IDs: see `IMPLEMENTATION_PLAN.md`.
 |---|---|
 | Embedding model | **`BAAI/bge-m3`** |
 | Vector store | **Chroma DB** |
-| UI framework | **Streamlit** for v1; **Next.js optional** as a later final step |
+| UI framework | **React + Vite + TypeScript** (production); Streamlit = completed Phase 5 MVP only |
+| API | **FastAPI** — `POST /v1/chat`, `GET /health`; serves `web/dist` in production |
 | Intent classifier | **Hybrid** (rules pre-filter + LLM structured label) |
 | Comparison answers | **Extract structured fields → deterministic template** (safer citations) |
-| LLM vendor (generation / classifier LLM stage) | Still flexible (e.g. OpenAI / Anthropic); abstract behind an interface |
+| Scraping | **Playwright** (primary); `httpx` fallback; BeautifulSoup for cleaning |
+| Corpus size | **18 URLs** (5 scheme + 13 general) from `SOURCE_LIST_RAGMFCHATBOT.md` |
+| LLM vendor (generation / classifier LLM stage) | Still flexible (e.g. OpenAI / Anthropic / Groq); abstract behind an interface |
 
 ---
 
 ## 17. Summary
 
-The system is a **dual-corpus, Chroma-backed RAG** using **`bge-m3` embeddings**, with a **strict pre-retrieval control plane** (PII → **hybrid intent** → scheme resolution). Single-scheme and general answers use constrained grounded generation; **cross-scheme comparisons extract structured fields and render via templates** for citation safety. Correctness is enforced by corpus isolation, conservative scheme matching, deterministic refusals, and citation validation — matching the PRD’s bar that a wrongly cited answer is a defect even if the number looks plausible. Concrete failure modes and test IDs live in **`EDGECASES.md`**.
+The system is a **dual-corpus, Chroma-backed RAG** using **`bge-m3` embeddings**, with a **strict pre-retrieval control plane** (PII → **hybrid intent** → scheme resolution). Single-scheme and general answers use constrained grounded generation; **cross-scheme comparisons extract structured fields and render via templates** for citation safety. The production surface is a **React + Vite SPA** over **FastAPI** (`POST /v1/chat`). Correctness is enforced by corpus isolation, conservative scheme matching, deterministic refusals, and citation validation — matching the PRD’s bar that a wrongly cited answer is a defect even if the number looks plausible. Concrete failure modes and test IDs live in **`EDGECASES.md`**.

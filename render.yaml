@@ -1,0 +1,48 @@
+# Render Free — maximum no-cost web service (Hobby workspace).
+# Instance: 512 MB RAM / 0.1 CPU. Spins down after 15 min idle (~1 min wake).
+# 750 instance hours/month. No persistent disk. No SSH / one-off jobs.
+#
+# Local bge-m3 + torch cannot run here. Query/ingest embeddings use
+# Hugging Face Inference API (still BAAI/bge-m3). Chroma is ephemeral:
+# it is rebuilt on cold start (AUTO_INGEST_ON_EMPTY) via httpx scrape.
+
+services:
+  - type: web
+    name: indmoney-mf-faq
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: INGEST_TOKEN
+        sync: false
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
+      - key: USE_LLM_CLASSIFIER
+        value: "true"
+      - key: EMBEDDING_BACKEND
+        value: huggingface
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-m3
+      - key: EMBEDDING_BATCH_SIZE
+        value: "1"
+      - key: ALLOW_PLAYWRIGHT
+        value: "false"
+      - key: AUTO_INGEST_ON_EMPTY
+        value: "true"
+      - key: CHROMA_PERSIST_DIR
+        value: /app/data/chroma
+      - key: RAW_HTML_DIR
+        value: /app/data/raw
+      - key: AUDIT_LOG_DIR
+        value: /app/data/audit
+      - key: METRICS_LOG_DIR
+        value: /app/data/metrics
+      - key: CORS_ORIGINS
+        value: http://localhost:5173

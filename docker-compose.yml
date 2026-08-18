@@ -2,16 +2,20 @@ services:
   web:
     build: .
     ports:
-      - "8501:8501"
+      - "8000:8000"
     environment:
       GROQ_API_KEY: ${GROQ_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-llama-3.3-70b-versatile}
+      HF_TOKEN: ${HF_TOKEN:-}
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-huggingface}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
       USE_LLM_CLASSIFIER: ${USE_LLM_CLASSIFIER:-true}
       CHROMA_PERSIST_DIR: /app/data/chroma
       RAW_HTML_DIR: /app/data/raw
       AUDIT_LOG_DIR: /app/data/audit
       METRICS_LOG_DIR: /app/data/metrics
-      PORT: "8501"
+      PORT: "8000"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      AUTO_INGEST_ON_EMPTY: ${AUTO_INGEST_ON_EMPTY:-false}
     volumes:
       - rag_data:/app/data
 

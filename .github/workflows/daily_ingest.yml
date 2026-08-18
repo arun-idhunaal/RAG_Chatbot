@@ -1,4 +1,5 @@
-# Daily freshness — 10:00 AM IST = 04:30 UTC (Architecture §12 / PRD §1)
+# Daily freshness — 10:00 AM IST = 04:30 UTC
+# Hits the live Render API so Chroma on the persistent disk is updated.
 name: Daily ingest refresh
 
 on:
@@ -7,50 +8,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  refresh:
+  refresh-render:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[playwright]"
-          playwright install --with-deps chromium
-
-      - name: Cache HuggingFace / torch models
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/huggingface
-            ~/.cache/torch
-          key: ${{ runner.os }}-bge-m3-${{ hashFiles('requirements.txt') }}
-
-      - name: Daily refresh (ingest + health)
+      - name: Trigger Render ingest
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          CHROMA_PERSIST_DIR: data/chroma
-          RAW_HTML_DIR: data/raw
-          AUDIT_LOG_DIR: data/audit
-          METRICS_LOG_DIR: data/metrics
-        run: python -m scripts.daily_refresh
-
-      - name: Upload audit + metrics artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ingest-artifacts-${{ github.run_id }}
-          path: |
-            data/audit/
-            data/metrics/
-            data/chroma/
-          retention-days: 7
+          RENDER_INGEST_URL: ${{ secrets.RENDER_INGEST_URL }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+        run: |
+          if [ -z "$RENDER_INGEST_URL" ] || [ -z "$INGEST_TOKEN" ]; then
+            echo "Skipping: set GitHub secrets RENDER_INGEST_URL and INGEST_TOKEN"
+            echo "Example: https://YOUR-SERVICE.onrender.com/v1/admin/ingest"
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_INGEST_URL" \
+            -H "Authorization: Bearer $INGEST_TOKEN" \
+            -H "Content-Type: application/json" \
+            --max-time 60
+          echo

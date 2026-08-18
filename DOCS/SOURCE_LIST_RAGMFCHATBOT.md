@@ -1,4 +1,6 @@
-**SCHEME SOURCES:**
+**Total corpus: 18 URLs** (5 scheme + 13 general).
+
+**SCHEME SOURCES:** (5 URLs)
 
 1 INDmoneyAMCICICI:
 
@@ -12,7 +14,7 @@
 
 [https://www.indmoney.com/mutual-funds/icici-prudential-elss-tax-saver-fund-direct-plan-growth](https://www.indmoney.com/mutual-funds/icici-prudential-elss-tax-saver-fund-direct-plan-growth)
 
-**NON SCHEME SOURCES:**
+**NON SCHEME SOURCES:** (13 URLs — 1 AMC + 9 SEBI + 3 AMFI)
 
 1 AMCICICI: 
 

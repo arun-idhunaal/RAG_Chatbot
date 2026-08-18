@@ -22,7 +22,8 @@ dependencies = [
   "tzdata>=2024.1",
   "rapidfuzz>=3.0",
   "groq>=0.13",
-  "streamlit>=1.57",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,7 @@ playwright = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*", "scripts*", "app*", "eval*"]
+include = ["src*", "scripts*", "eval*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

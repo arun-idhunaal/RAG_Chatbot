@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
-# Container entry: health → ingest if empty → Streamlit (EC-X-04 fail-closed until ready).
+# Render / Docker entry: create data dirs, start API immediately.
+# Do not block on ingest — Render health checks /health while this process boots.
+# Empty-index ingest is AUTO_INGEST_ON_EMPTY (in-process) or POST /v1/admin/ingest.
 set -euo pipefail
 cd /app
 
-mkdir -p "${CHROMA_PERSIST_DIR:-data/chroma}" \
-         "${RAW_HTML_DIR:-data/raw}" \
-         "${AUDIT_LOG_DIR:-data/audit}" \
-         "${METRICS_LOG_DIR:-data/metrics}"
+export PYTHONPATH="${PYTHONPATH:-/app}"
+export PORT="${PORT:-8000}"
 
-if ! python -m scripts.health_check; then
-  echo "Index unhealthy or empty — running ingest (cold start)…"
-  python -m scripts.daily_refresh || true
-  python -m scripts.health_check
-fi
+mkdir -p "${CHROMA_PERSIST_DIR:-/app/data/chroma}" \
+         "${RAW_HTML_DIR:-/app/data/raw}" \
+         "${AUDIT_LOG_DIR:-/app/data/audit}" \
+         "${METRICS_LOG_DIR:-/app/data/metrics}"
 
-exec streamlit run app/streamlit_app.py \
-  --server.port="${PORT:-8501}" \
-  --server.address=0.0.0.0 \
-  --browser.gatherUsageStats=false
+exec python -m uvicorn src.api.app:app --host 0.0.0.0 --port "${PORT}"
