@@ -78,7 +78,7 @@ Every incoming query must be classified into exactly one of these before retriev
 **Rules:**
 - Only these fields may be compared: expense ratio, exit load, minimum SIP, lock-in, riskometer category, benchmark.
 - Answer must state each scheme's value individually with its own citation (e.g., "Scheme A: X% [source]. Scheme B: Y% [source].") — never a bare ranking without the underlying values shown.
-- Ranking-style questions (e.g. “which of these has the lowest expense ratio?”) still require those per-scheme values whenever the scheme sources contain the field. “Unavailable from sources” is only for a scheme whose field cannot be extracted — not a stand-in for a ranking.
+- Ranking-style questions (e.g. “which of these has the lowest expense ratio?”) still require those per-scheme values whenever the scheme sources contain the field — including when the TER is stored without a `%` sign. “Unavailable from sources” is only for a scheme whose field cannot be extracted — not a stand-in for a ranking.
 - Phrasing must stay factual: "Scheme A has a lower expense ratio than Scheme B" is fine. "Scheme A is the better choice" is not — that's advisory and must route to FR-7 language instead, even mid-answer.
 
 ### FR-5: Answer Composition

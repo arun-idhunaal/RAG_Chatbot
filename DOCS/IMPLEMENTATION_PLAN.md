@@ -208,10 +208,10 @@ Phase 2.
 
 1. **Cross-scheme comparison (FR-4) — extract → template**
    - Allowed fields only: expense ratio, exit load, min SIP, lock-in, riskometer, benchmark
-   - Per-scheme retrieve with a **field-focused query** (not ranking wording) → structured extract  
+   - Per-scheme **keyword-scan** of stored chunks for the requested field (not ranking embeddings) → structured extract  
      `{scheme_id, scheme_name, field, value, source_url, scraped_at}`
    - Deterministic template listing each scheme’s value + own citation
-   - Expense-ratio extract skips “as on” dates and prefers Direct-plan % (EC-CMP-09)
+   - Expense-ratio extract skips “as on” dates, accepts TER without `%`, prefers Direct-plan value (EC-CMP-09, EC-CMP-10)
    - No “better choice” / advice language; optional factual “lower than” only when values support it
    - Missing extract → “unavailable from sources” for that scheme (no guess)
 2. **Refusal & edge handlers**
@@ -230,14 +230,14 @@ Phase 2.
 - [x] `field_extractor`, `comparison_templater`, refusal templates, hardened `citation_validator`
 - [x] Full orchestrator covering all 8 taxonomy paths
 - [x] CLI walkthrough matching Sample Q&A sections 1–4 (advisory, mixed, etc.)
-- [x] Edge-case tests: **EC-CMP-01…06**, **EC-CMP-09**, **EC-ADV-01…03**, **EC-MIX-01…04**, **EC-UNS-01…04**, **EC-OOC-01…04**, **EC-X-02…03**
+- [x] Edge-case tests: **EC-CMP-01…06**, **EC-CMP-09…10**, **EC-ADV-01…03**, **EC-MIX-01…04**, **EC-UNS-01…04**, **EC-OOC-01…04**, **EC-X-02…03**
 
 ### Exit criteria
 
 - All 8 intent types classified and routed with correct response shape
 - Comparisons: per-scheme values + citations; no performance/return framing (**EC-CMP-01…03**, **EC-CIT-05**)
 - Missing extract → unavailable row, no guess (**EC-CMP-05**); no “better choice” (**EC-CMP-06**)
-- Ranking questions still extract Direct-plan values when the TER is on the scheme page (**EC-CMP-09**)
+- Ranking questions still extract Direct-plan values when the TER is on the scheme page (**EC-CMP-09**, **EC-CMP-10**)
 - Mixed = fact then separate refusal (**EC-MIX-01**, **EC-MIX-02**)
 - Unsupported lists exactly the 5 schemes (**EC-UNS-01**); out-of-corpus **distinct** from unsupported (**EC-OOC-01**, **EC-OOC-04**)
 - Advisory never hedges with uncited facts (**EC-ADV-01**); no echo of advisory framing (**EC-ADV-02**)

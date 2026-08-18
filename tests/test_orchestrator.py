@@ -87,8 +87,8 @@ def test_route_cross_scheme_calls_per_scheme_retrieval(no_llm_settings, mock_ret
         retriever=mock_retriever,
     )
     assert result.intent == Intent.CROSS_SCHEME_COMPARISON
-    # Phase 4: per-scheme retrieve + extract (not a single blended call)
-    assert mock_retriever.retrieve_scheme.call_count == 5
+    # Phase 4: per-scheme field scan + extract (not a single blended call)
+    assert mock_retriever.retrieve_scheme_field.call_count == 5
     assert result.answer_text is not None
     assert result.comparison_field == "expense_ratio"
 

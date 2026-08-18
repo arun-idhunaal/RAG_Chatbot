@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any, Literal
 
 from src.config.fact_types import FACT_TYPE_PATTERNS
@@ -10,6 +9,7 @@ from src.config.schemes import all_scheme_ids
 from src.config.settings import Settings, get_settings
 from src.ingestion.embed import embed_texts
 from src.ingestion.store import VectorStore
+from src.pipeline.field_extractor import field_retrieval_query
 from src.pipeline.models import RetrievedChunk
 
 # Field-label keywords for optional re-ranking boost.
@@ -51,6 +51,42 @@ class Retriever:
             fact_type=fact_type,
         )
         return self._to_chunks(hits, expected_corpus="scheme", expected_scheme_id=scheme_id)
+
+    def retrieve_scheme_field(self, scheme_id: str, field: str) -> list[RetrievedChunk]:
+        """FR-4: keyword-scan this scheme's chunks for the requested field.
+
+        Vector top-k on a ranking question (or even a field query) often misses
+        the TER/SIP card. Individual answers still work because the LLM sees
+        whatever chunks ranked. Comparisons need the card itself.
+        """
+        labels = _FIELD_LABEL_BOOSTS.get(field, ())
+        extra = FACT_TYPE_PATTERNS.get(field, ())
+        needles = tuple(dict.fromkeys((*labels, *extra)))
+        selected: list[dict[str, Any]] = []
+        for hit in self.store.get_scheme_chunks(scheme_id):
+            meta = hit.get("metadata") or {}
+            if meta.get("out_of_scope"):
+                continue
+            doc = (hit.get("document") or "").lower()
+            facts = {
+                f.strip()
+                for f in str(meta.get("fact_types") or "").split(",")
+                if f.strip()
+            }
+            if field in facts or any(n.lower() in doc for n in needles):
+                selected.append(hit)
+        if selected:
+            cap = max(self.settings.retrieval_top_k, 8)
+            return self._to_chunks(
+                selected[:cap],
+                expected_corpus="scheme",
+                expected_scheme_id=scheme_id,
+            )
+        return self.retrieve_scheme(
+            field_retrieval_query(field),
+            scheme_id,
+            fact_type=field,
+        )
 
     def retrieve_general(self, query: str) -> list[RetrievedChunk]:
         """EC-RET-02: corpus=general only."""

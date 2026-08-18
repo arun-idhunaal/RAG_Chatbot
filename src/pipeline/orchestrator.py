@@ -18,7 +18,6 @@ from src.pipeline.field_extractor import (
     COMPARISON_ALLOWED_FIELDS,
     LlmExtractFn,
     extract_field_for_scheme,
-    field_retrieval_query,
     is_allowed_comparison_field,
 )
 from src.pipeline.intent_classifier import classify_intent
@@ -434,11 +433,8 @@ def _handle_comparison(
     scheme_ids = all_scheme_ids()
     all_chunks: list[RetrievedChunk] = []
     rows = []
-    extract_query = field_retrieval_query(fact_type)
     for scheme_id in scheme_ids:
-        chunks = retriever.retrieve_scheme(
-            extract_query, scheme_id, fact_type=fact_type
-        )
+        chunks = retriever.retrieve_scheme_field(scheme_id, fact_type)
         all_chunks.extend(chunks)
         rows.append(
             extract_field_for_scheme(

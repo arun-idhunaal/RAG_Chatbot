@@ -175,6 +175,46 @@ def test_ec_cmp_09_extract_skips_as_on_date():
     assert "1%" != row.value
 
 
+def test_ec_cmp_10_extract_ter_without_percent_sign():
+    """INDmoney httpx extracts often omit % after the Direct TER (EC-CMP-10)."""
+    chunks = [
+        RetrievedChunk(
+            chunk_id="nasdaq-er",
+            text=(
+                "ExpenseRatio\n"
+                "as on 18 Aug 2026\n"
+                "Direct 0.43\n"
+                "Regular 0.90\n"
+            ),
+            corpus="scheme",
+            scheme_id="icici_nasdaq100_dg",
+            source_url=(
+                "https://www.indmoney.com/mutual-funds/"
+                "icici-prudential-nasdaq-100-index-fund-direct-growth"
+            ),
+            source_title="Nasdaq",
+            page_ref=None,
+            scraped_at="2026-08-18T10:00:00+05:30",
+            fact_types=["expense_ratio"],
+            similarity=0.5,
+        )
+    ]
+    row = extract_field_for_scheme("icici_nasdaq100_dg", "expense_ratio", chunks)
+    assert row.available is True
+    assert row.value == "0.43%"
+
+
+def test_ec_cmp_10_keyword_scan_finds_ter_chunk(populated_store, tmp_settings):
+    from src.retrieval.retriever import Retriever
+
+    retriever = Retriever(store=populated_store, settings=tmp_settings)
+    chunks = retriever.retrieve_scheme_field("icici_flexicap_dg", "expense_ratio")
+    assert chunks
+    assert any("0.65%" in (c.text or "") for c in chunks)
+    for c in chunks:
+        assert c.scheme_id == "icici_flexicap_dg"
+
+
 def test_ec_cmp_09_comparison_uses_field_retrieval_query(
     no_llm_settings, mock_retriever
 ):
@@ -187,12 +227,16 @@ def test_ec_cmp_09_comparison_uses_field_retrieval_query(
     assert result.insufficient_context is False
     assert UNAVAILABLE_LABEL not in (result.answer_text or "").lower()
     assert "0.5%" in (result.answer_text or "")
-    for call in mock_retriever.retrieve_scheme.call_args_list:
-        query = call.args[0]
-        assert "which of these" not in query.lower()
-        assert "lowest" not in query.lower()
-        assert "expense ratio" in query.lower()
-        assert call.kwargs.get("fact_type") == "expense_ratio"
+    for call in mock_retriever.retrieve_scheme_field.call_args_list:
+        scheme_id, field = call.args[0], call.args[1]
+        assert field == "expense_ratio"
+        assert scheme_id in {
+            "icici_nasdaq100_dg",
+            "icici_midcap_dg",
+            "icici_flexicap_dg",
+            "icici_largecap_dg",
+            "icici_elss_dg",
+        }
 
 
 def test_orchestrator_comparison_end_to_end(no_llm_settings, mock_retriever):

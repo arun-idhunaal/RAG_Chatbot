@@ -50,7 +50,21 @@ def field_retrieval_query(field: str) -> str:
 
 
 # Regex fallbacks when LLM is unavailable or fails.
-_PERCENT = re.compile(r"(\d+(?:\.\d+)?)\s*%")
+_PERCENT = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:[%％]|percent\b|per\s*cent\b)",
+    re.IGNORECASE,
+)
+_BARE_NUMBER = re.compile(r"(\d+\.\d+)")
+_MONTH = re.compile(
+    r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
+    r"nov(?:ember)?|dec(?:ember)?)\b",
+    re.IGNORECASE,
+)
+_LABEL_RE = re.compile(
+    r"(?:total\s*)?expense\s*ratio|expenseratio|\bter\b",
+    re.IGNORECASE,
+)
 _REGEX_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     "expense_ratio": (
         # Kept for simple "Expense ratio is 0.65%" lines; dated INDmoney
@@ -275,39 +289,58 @@ def _regex_extract(field: str, chunks: list[RetrievedChunk]) -> dict[str, str] |
 
 
 def _extract_expense_ratio(text: str) -> str | None:
-    """Parse Direct-plan TER, skipping dates/numbers between the label and %."""
+    """Parse Direct-plan TER, skipping dates; allow values without a % sign."""
     lower = text.lower()
-    label_idx: int | None = None
-    for label in ("total expense ratio", "expense ratio"):
-        found = lower.find(label)
-        if found >= 0:
-            label_idx = found
-            break
-    if label_idx is None:
-        ter = re.search(r"\bter\b", lower)
-        label_idx = ter.start() if ter else None
-    if label_idx is None:
+    match = _LABEL_RE.search(lower)
+    if not match:
         return None
-
+    label_idx = match.start()
     window = text[label_idx : label_idx + 500]
     window_l = window.lower()
+
     plausible: list[re.Match[str]] = []
-    for match in _PERCENT.finditer(window):
-        try:
-            amount = float(match.group(1))
-        except ValueError:
-            continue
-        # Direct-plan TER for these schemes is well under 6%.
-        if 0.01 <= amount <= 6.0:
-            plausible.append(match)
+    for found in _PERCENT.finditer(window):
+        amount = _safe_float(found.group(1))
+        if amount is not None and 0.01 <= amount <= 6.0:
+            plausible.append(found)
+
+    if not plausible:
+        for found in _BARE_NUMBER.finditer(window):
+            if _looks_like_date_number(window, found):
+                continue
+            amount = _safe_float(found.group(1))
+            if amount is not None and 0.01 <= amount <= 6.0:
+                plausible.append(found)
+
     if not plausible:
         return None
 
-    for match in plausible:
-        around = window_l[max(0, match.start() - 48) : match.end() + 24]
-        if re.search(r"\bdirect\b", around):
-            return f"{match.group(1)}%"
+    direct_span = re.search(
+        r"\bdirect\b.{0,40}?(\d+\.\d+)",
+        window_l,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if direct_span:
+        amount = _safe_float(direct_span.group(1))
+        if amount is not None and 0.01 <= amount <= 6.0:
+            return f"{direct_span.group(1)}%"
     return f"{plausible[0].group(1)}%"
+
+
+def _safe_float(raw: str) -> float | None:
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _looks_like_date_number(window: str, match: re.Match[str]) -> bool:
+    around = window[max(0, match.start() - 24) : match.end() + 24]
+    if _MONTH.search(around):
+        return True
+    if re.fullmatch(r"20\d{2}", match.group(1)):
+        return True
+    return False
 
 
 def _finalize_llm_extract(
@@ -320,15 +353,7 @@ def _finalize_llm_extract(
     fallback_url: str,
 ) -> ExtractedField | None:
     if not draft.get("available", False):
-        return ExtractedField(
-            scheme_id=scheme_id,
-            scheme_name=scheme_name,
-            field=field,
-            value=None,
-            source_url=str(draft.get("source_url") or chunks[0].source_url or fallback_url),
-            scraped_at=str(draft.get("scraped_at") or chunks[0].scraped_at or ""),
-            available=False,
-        )
+        return None
 
     value = draft.get("value")
     if value is None or str(value).strip() == "" or str(value).lower() == "null":

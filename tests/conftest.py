@@ -127,6 +127,12 @@ def mock_retriever() -> MagicMock:
         ]
 
     retriever.retrieve_scheme.side_effect = _scheme_chunks
+    retriever.retrieve_scheme_field.side_effect = (
+        lambda scheme_id, field: _scheme_chunks(field, scheme_id, fact_type=field)
+    )
+    retriever.retrieve_scheme_field.side_effect = (
+        lambda scheme_id, field: _scheme_chunks(field, scheme_id, fact_type=field)
+    )
     retriever.retrieve_general.return_value = [
         RetrievedChunk(
             chunk_id="mock-g1",

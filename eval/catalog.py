@@ -56,7 +56,7 @@ MINIMUM_SUITE: tuple[EdgeCaseSpec, ...] = (
     EdgeCaseSpec("EC-CIT-05", "citations", Severity.S1, "Per-scheme comparison citations", ("EC-CIT-05", "test_ec_cmp")),
     EdgeCaseSpec("EC-ANS-03", "citations", Severity.S0, "No uncited extra facts", ("EC-ANS-03", "test_ec_ans_cit")),
     EdgeCaseSpec("EC-ANS-04", "citations", Severity.S1, "Insufficient context fail-closed", ("EC-ANS-04", "test_ec_ans_cit")),
-    # Comparisons — EC-CMP-01…06, EC-CMP-09
+    # Comparisons — EC-CMP-01…06, EC-CMP-09…10
     EdgeCaseSpec("EC-CMP-01", "comparison", Severity.S1, "Allowed field + per-scheme cites", ("EC-CMP-01", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-02", "comparison", Severity.S1, "Bare ranking shows all values", ("EC-CMP-02", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-03", "comparison", Severity.S0, "Returns comparison not FR-4", ("EC-CMP-03", "test_ec_cmp")),
@@ -64,6 +64,7 @@ MINIMUM_SUITE: tuple[EdgeCaseSpec, ...] = (
     EdgeCaseSpec("EC-CMP-05", "comparison", Severity.S1, "Missing extract → unavailable", ("EC-CMP-05", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-06", "comparison", Severity.S0, "No better-choice language", ("EC-CMP-06", "test_ec_cmp")),
     EdgeCaseSpec("EC-CMP-09", "comparison", Severity.S1, "Ranking query still extracts Direct TER", ("EC-CMP-09", "test_ec_cmp")),
+    EdgeCaseSpec("EC-CMP-10", "comparison", Severity.S1, "Keyword-scan TER without percent sign", ("EC-CMP-10", "test_ec_cmp")),
     # Advisory / mixed — EC-ADV-01…03, EC-MIX-01…03
     EdgeCaseSpec("EC-ADV-01", "advisory_mixed", Severity.S0, "Best/should/recommend refused", ("EC-ADV-01", "test_ec_adv_mix")),
     EdgeCaseSpec("EC-ADV-02", "advisory_mixed", Severity.S2, "No echo of advisory framing", ("EC-ADV-02", "test_ec_adv_mix")),

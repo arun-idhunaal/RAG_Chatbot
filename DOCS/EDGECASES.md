@@ -97,7 +97,8 @@ This document catalogs **edge cases and failure modes** the bot must handle corr
 | EC-CMP-06 | Template emits “better choice” language | Defect — strip/forbid; factual “lower expense ratio than” only when values support | S0 |
 | EC-CMP-07 | Different `scraped_at` across schemes | Prefer per-citation dates (or clearly scoped stamps); not one wrong global date | S2 |
 | EC-CMP-08 | Compare field not in allowed list (e.g. AUM, holdings) | Out-of-corpus / not supported comparison — no invented table | S1 |
-| EC-CMP-09 | Ranking question (“lowest expense ratio”) when scheme pages contain the field (label, then “as on” date, then Direct/Regular %) | Field-focused retrieve + parse; each scheme shows its Direct value + own citation — **not** all-unavailable | S1 |
+| EC-CMP-09 | Ranking question (“lowest expense ratio”) when scheme pages contain the field (label, then “as on” date, then Direct/Regular %) | Keyword-scan that scheme’s chunks for the field (not ranking embeddings) + parse; each scheme shows its Direct value + own citation — **not** all-unavailable | S1 |
+| EC-CMP-10 | TER card has no `%` (e.g. `ExpenseRatio` / `Direct 0.43`) or the TER chunk is not in vector top-k | Still extract Direct TER from scheme-page text; unavailable only when the field is truly absent | S1 |
 
 ---
 
@@ -218,7 +219,7 @@ Minimum automated / scripted coverage:
 | Scheme match | EC-SCH-01…06, EC-SCH-09 |
 | Retrieval isolation | EC-RET-01…04 |
 | Citations | EC-CIT-01…05, EC-ANS-03…04 |
-| Comparisons | EC-CMP-01…06, EC-CMP-09 |
+| Comparisons | EC-CMP-01…06, EC-CMP-09…10 |
 | Advisory / mixed | EC-ADV-01…03, EC-MIX-01…03 |
 | FR-9 vs FR-10 | EC-UNS-01…04, EC-OOC-01…04 |
 | PII | EC-PII-01…04 |

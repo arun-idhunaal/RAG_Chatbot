@@ -115,6 +115,31 @@ class VectorStore:
             counts[sid] = counts.get(sid, 0) + 1
         return counts
 
+    def get_scheme_chunks(self, scheme_id: str) -> list[dict[str, Any]]:
+        """All stored chunks for one scheme_id (no similarity floor)."""
+        try:
+            result = self.scheme.get(
+                where={"scheme_id": scheme_id},
+                include=["documents", "metadatas"],
+            )
+        except Exception:  # noqa: BLE001
+            return []
+        ids = result.get("ids") or []
+        docs = result.get("documents") or []
+        metas = result.get("metadatas") or []
+        hits: list[dict[str, Any]] = []
+        for i, chunk_id in enumerate(ids):
+            hits.append(
+                {
+                    "id": chunk_id,
+                    "document": docs[i] if i < len(docs) else "",
+                    "metadata": metas[i] if i < len(metas) else {},
+                    "distance": None,
+                    "similarity": 1.0,
+                }
+            )
+        return hits
+
     def sample_query(
         self,
         *,
