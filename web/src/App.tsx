@@ -94,7 +94,7 @@ export default function App() {
 
   return (
     <div className="bg-background text-on-surface h-screen overflow-hidden flex flex-col md:flex-row">
-      <header className="md:hidden flex items-center justify-between px-6 h-16 bg-surface border-b border-outline-variant z-30 fixed w-full top-0">
+      <header className="md:hidden flex items-center justify-between px-6 h-16 shrink-0 bg-surface border-b border-outline-variant z-30">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -117,8 +117,8 @@ export default function App() {
         onAskScheme={(name) => void ask(`What is the expense ratio of ${name}?`)}
       />
 
-      <main className="flex-1 flex flex-col h-full md:ml-[300px] mt-16 md:mt-0 relative bg-background">
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex justify-center pb-[160px]">
+      <main className="flex-1 flex flex-col min-h-0 md:ml-[300px] bg-background">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex justify-center">
           <div className="w-full max-w-[800px] px-4 md:px-6 py-8 flex flex-col gap-6">
             {corpusDown ? (
               <div className="bg-error-container/40 border border-error/40 text-error rounded-xl p-4 text-sm">
@@ -190,13 +190,13 @@ export default function App() {
           </div>
         </div>
 
-        <div className="absolute bottom-7 w-full bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6 px-4 md:px-6 flex justify-center z-20">
+        <div className="shrink-0 w-full bg-background pt-2 pb-2 px-4 md:px-6 flex justify-center">
           <div className="w-full max-w-[800px]">
             <Composer disabled={busy || !config} onSend={(t) => void ask(t)} />
           </div>
         </div>
 
-        <footer className="fixed bottom-0 w-full md:w-[calc(100%-300px)] z-30 py-1.5 flex justify-center items-center bg-surface-container-lowest border-t border-outline-variant/30">
+        <footer className="shrink-0 w-full py-1.5 flex justify-center items-center bg-surface-container-lowest border-t border-outline-variant/30">
           <span className="text-[11px] font-semibold text-on-surface-variant/80">
             {disclaimer}
           </span>
